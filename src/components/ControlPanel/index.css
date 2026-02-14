@@ -211,6 +211,21 @@
   box-shadow: 0 4px 15px rgba(251, 191, 36, 0.4);
 }
 
+.play-button.go-button {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+  animation: goButtonPulse 1s ease-in-out infinite;
+}
+
+@keyframes goButtonPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
 .play-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(74, 222, 128, 0.5);

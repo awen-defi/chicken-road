@@ -1,4 +1,5 @@
 import "./index.css";
+import { DollarIcon } from "../DollarIcon";
 
 export function Header({ balance = 1000000 }) {
   const formatBalance = (num) => {
@@ -40,7 +41,7 @@ export function Header({ balance = 1000000 }) {
 
         <div className="balance">
           {formatBalance(balance)}
-          <p className="dollar-icon">$</p>
+          <DollarIcon />
         </div>
 
         <div className="fullscreen-button">

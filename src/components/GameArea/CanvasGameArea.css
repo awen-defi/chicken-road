@@ -1,0 +1,68 @@
+.canvas-game-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.game-canvas {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+}
+
+.game-notification {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 700;
+  z-index: 1000;
+  animation: slideDown 0.3s ease-out;
+  max-height: 60px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.game-notification.win {
+  background: rgba(34, 197, 94, 0.95);
+  color: white;
+  box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);
+}
+
+.game-notification.lost {
+  background: rgba(239, 68, 68, 0.95);
+  color: white;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Responsive canvas */
+@media (max-width: 768px) {
+  .game-canvas {
+    width: 100%;
+    height: auto;
+  }
+}
