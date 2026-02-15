@@ -5,10 +5,9 @@ import { Header, GameArea, ControlPanel } from "./components";
 export default function App() {
   const [balance, setBalance] = useState(1000000);
   const [betAmount, setBetAmount] = useState(1);
-  const [difficulty, setDifficulty] = useState("Easy");
+  const [difficulty, setDifficulty] = useState("Easy"); // Easy, Medium, Hard, Hardcore
   const [gameState, setGameState] = useState("idle"); // idle, playing, won, lost
   const [score, setScore] = useState(0);
-  const [multipliers] = useState([1.01, 1.03, 1.06, 1.1, 1.15, 1.19]);
 
   // Handle play/go button click
   const handlePlay = useCallback(() => {
