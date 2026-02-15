@@ -8,7 +8,7 @@ A fun and interactive browser-based game where a chicken attempts to cross a roa
 
 - **Interactive Gameplay**: Guide the chicken across the road to collect multipliers
 - **Adjustable Betting**: Choose your bet amount with a convenient slider (0.1 - 10)
-- **Multiple Difficulty Levels**: 
+- **Multiple Difficulty Levels**:
   - Easy
   - Medium
   - Hard
@@ -29,11 +29,13 @@ A fun and interactive browser-based game where a chicken attempts to cross a roa
 
 1. Clone the repository
 2. Install dependencies:
+
 ```bash
 npm install
 ```
 
 3. Start the development server:
+
 ```bash
 npm run dev
 ```
@@ -58,7 +60,7 @@ npm run dev
 ## 📁 Project Structure
 
 ```
-chicken-road-game/
+ChickenRoadTwoClient/
 ├── public/
 │   └── logo.png           # Game logo
 ├── src/
@@ -81,6 +83,7 @@ chicken-road-game/
 ## 🎨 Features Overview
 
 ### Header
+
 - Game logo display
 - "How to play?" button
 - Balance display with currency icon
@@ -88,6 +91,7 @@ chicken-road-game/
 - Menu button
 
 ### Game Area
+
 - Live statistics panel
 - Online player count
 - Chicken character with animations
@@ -97,6 +101,7 @@ chicken-road-game/
 - Decorative ground with grass and trees
 
 ### Control Panel
+
 - MIN/MAX slider for bet amount
 - Quick bet selection buttons
 - Difficulty level selector
@@ -126,12 +131,15 @@ npm run lint     # Run ESLint
 ## 🎨 Customization
 
 ### Changing Multipliers
+
 Edit the multipliers array in src/App.jsx
 
 ### Adjusting Bet Options
+
 Modify the betOptions array in src/components/ControlPanel/index.jsx
 
 ### Styling
+
 All component styles are located in their respective index.css files.
 
 ---
