@@ -1,6 +1,5 @@
 import { GameLoop } from "./GameLoop.js";
 import { Renderer } from "./Renderer.js";
-import { Camera } from "./Camera.js";
 import { CarSpawner } from "../systems/CarSpawner.js";
 
 /**
@@ -15,7 +14,6 @@ export class Game {
 
     // Core systems
     this.renderer = new Renderer(canvas);
-    this.camera = new Camera(canvas.width, canvas.height);
     this.gameLoop = null;
 
     // Managers
@@ -23,14 +21,6 @@ export class Game {
     this.assetManager = null;
     this.inputSystem = null;
     this.carSpawner = null;
-
-    // Event listeners for React integration
-    this.eventListeners = new Map();
-
-    // Performance tracking
-    this.fps = 0;
-    this.frameCount = 0;
-    this.lastFpsUpdate = 0;
   }
 
   /**
@@ -41,24 +31,8 @@ export class Game {
     this.assetManager = assetManager;
     this.inputSystem = inputSystem;
 
-    // Setup input callbacks for drag events (container scrolling)
-    this.inputSystem.onDragStart((x, y) => {
-      this.emit("dragStart", { x, y });
-    });
-
-    this.inputSystem.onDragMove((x, y) => {
-      this.emit("dragMove", { x, y });
-    });
-
-    this.inputSystem.onDragEnd(() => {
-      this.emit("dragEnd");
-    });
-
     // Initialize car spawner
     this.carSpawner = new CarSpawner(this.config.carSpawner || {});
-
-    // Emit initialization complete
-    this.emit("initialized");
   }
 
   /**
@@ -75,8 +49,6 @@ export class Game {
       this.render.bind(this),
     );
     this.gameLoop.start();
-
-    this.emit("stateChange", { state: "playing" });
   }
 
   /**
@@ -87,7 +59,6 @@ export class Game {
       this.gameLoop.stop();
     }
     this.state = "paused";
-    this.emit("stateChange", { state: "paused" });
   }
 
   /**
@@ -97,7 +68,6 @@ export class Game {
     if (this.gameLoop && this.state === "paused") {
       this.gameLoop.start();
       this.state = "playing";
-      this.emit("stateChange", { state: "playing" });
     }
   }
 
@@ -109,7 +79,6 @@ export class Game {
       this.gameLoop.stop();
     }
     this.state = "idle";
-    this.emit("stateChange", { state: "idle" });
   }
 
   /**
@@ -117,11 +86,6 @@ export class Game {
    */
   update(deltaTime) {
     if (this.state !== "playing") return;
-
-    // Update input system
-    if (this.inputSystem) {
-      this.inputSystem.update(deltaTime);
-    }
 
     // Update all entities
     if (this.entityManager) {
@@ -132,9 +96,6 @@ export class Game {
     if (this.carSpawner) {
       this.carSpawner.update(deltaTime);
     }
-
-    // Update FPS counter
-    this.updateFPS(deltaTime);
   }
 
   /**
@@ -158,73 +119,10 @@ export class Game {
   }
 
   /**
-   * Update FPS counter
-   */
-  updateFPS(deltaTime) {
-    this.frameCount++;
-    this.lastFpsUpdate += deltaTime;
-
-    if (this.lastFpsUpdate >= 1.0) {
-      this.fps = this.frameCount;
-      this.frameCount = 0;
-      this.lastFpsUpdate = 0;
-      this.emit("fpsUpdate", { fps: this.fps });
-    }
-  }
-
-  /**
    * Resize canvas
    */
   resize(width, height) {
     this.renderer.resize(width, height);
-    this.camera.setSize(width, height);
-    this.emit("resize", { width, height });
-  }
-
-  /**
-   * Event emitter for React integration
-   */
-  on(event, callback) {
-    if (!this.eventListeners.has(event)) {
-      this.eventListeners.set(event, []);
-    }
-    this.eventListeners.get(event).push(callback);
-  }
-
-  /**
-   * Remove event listener
-   */
-  off(event, callback) {
-    const callbacks = this.eventListeners.get(event);
-    if (callbacks) {
-      const index = callbacks.indexOf(callback);
-      if (index !== -1) {
-        callbacks.splice(index, 1);
-      }
-    }
-  }
-
-  /**
-   * Emit event
-   */
-  emit(event, data = {}) {
-    const callbacks = this.eventListeners.get(event);
-    if (callbacks) {
-      callbacks.forEach((callback) => callback(data));
-    }
-  }
-
-  /**
-   * Get current game state
-   */
-  getState() {
-    return {
-      state: this.state,
-      fps: this.fps,
-      entityCount: this.entityManager ? this.entityManager.getEntityCount() : 0,
-      cameraX: this.camera.x,
-      cameraY: this.camera.y,
-    };
   }
 
   /**
@@ -246,8 +144,5 @@ export class Game {
     if (this.entityManager) {
       this.entityManager.clear();
     }
-
-    this.eventListeners.clear();
-    this.emit("destroyed");
   }
 }

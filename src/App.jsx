@@ -23,38 +23,10 @@ export default function App() {
     }
   }, [gameState, betAmount, balance]);
 
-  // Handle game over
-  const handleGameOver = useCallback(() => {
-    setGameState("lost");
-    setTimeout(() => {
-      setGameState("idle");
-      setScore(0);
-    }, 2000);
-  }, []);
-
-  // Handle coin collection
-  const handleCoinCollect = useCallback((coinValue) => {
-    setScore((prev) => prev + coinValue);
-    // Add coin value to potential winnings
-    setBalance((prev) => prev + coinValue);
-  }, []);
-
-  // Handle jump (Go button click during gameplay)
-  const handleJump = useCallback(() => {
-    // Jump logic is handled in CanvasGameArea
-    // This is just for tracking jumps if needed
-  }, []);
-
   return (
     <div className="app-container">
       <Header balance={balance} />
-      <GameArea
-        gameState={gameState}
-        difficulty={difficulty}
-        onGameOver={handleGameOver}
-        onCoinCollect={handleCoinCollect}
-        onJump={handleJump}
-      />
+      <GameArea />
       <ControlPanel
         betAmount={betAmount}
         setBetAmount={setBetAmount}

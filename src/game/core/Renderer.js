@@ -27,7 +27,6 @@ export class Renderer {
     this.context.imageSmoothingEnabled = true;
     this.context.imageSmoothingQuality = "high";
 
-    this.camera = null;
     this.width = canvas.width;
     this.height = canvas.height;
 
@@ -77,13 +76,6 @@ export class Renderer {
   }
 
   /**
-   * Set the camera for rendering
-   */
-  setCamera(camera) {
-    this.camera = camera;
-  }
-
-  /**
    * Clear the canvas (with double buffering)
    */
   clear(color = "#2a2a2a") {
@@ -110,29 +102,16 @@ export class Renderer {
   }
 
   /**
-   * Begin rendering with camera transform
+   * Begin rendering
    */
   begin() {
-    const ctx = this.useDoubleBuffering ? this.offscreenContext : this.context;
-
-    // Only save context if camera transform is needed
-    if (this.camera) {
-      ctx.save();
-      this.camera.applyTransform(ctx);
-    }
+    // Prepare offscreen buffer if using double buffering
   }
 
   /**
-   * End rendering and restore context
+   * End rendering and swap buffers
    */
   end() {
-    const ctx = this.useDoubleBuffering ? this.offscreenContext : this.context;
-
-    // Only restore if we saved (when camera is active)
-    if (this.camera) {
-      ctx.restore();
-    }
-
     // Swap buffers after all rendering is complete
     if (this.useDoubleBuffering) {
       this.swapBuffers();

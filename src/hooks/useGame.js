@@ -15,15 +15,9 @@ export function useGame(canvasRef, config) {
   const gameRef = useRef(null);
   const entityManagerRef = useRef(null);
   const assetManagerRef = useRef(null);
-  const inputSystemRef = useRef(null);
   const chickenRef = useRef(null);
 
   const [isLoading, setIsLoading] = useState(true);
-  // const [gameState, setGameState] = useState({
-  //   state: "idle",
-  //   fps: 0,
-  //   entityCount: 0,
-  // });
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -40,7 +34,6 @@ export function useGame(canvasRef, config) {
 
         entityManagerRef.current = entityManager;
         assetManagerRef.current = assetManager;
-        inputSystemRef.current = inputSystem;
 
         // Create game instance
         const game = new Game(canvas, config);
@@ -132,15 +125,6 @@ export function useGame(canvasRef, config) {
           );
         }
 
-        // Subscribe to game events
-        // game.on("stateChange", (data) => {
-        //   setGameState((prev) => ({ ...prev, ...data }));
-        // });
-
-        // game.on("fpsUpdate", (data) => {
-        //   setGameState((prev) => ({ ...prev, fps: data.fps }));
-        // });
-
         // Start game loop
         game.start();
 
@@ -168,6 +152,5 @@ export function useGame(canvasRef, config) {
     assetManagerRef,
     chickenRef,
     isLoading,
-    // gameState,
   };
 }

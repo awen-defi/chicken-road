@@ -11,11 +11,6 @@ export class InputSystem {
     this.dragStartX = 0;
     this.dragStartY = 0;
 
-    // Event listeners
-    this.onDragStartCallbacks = [];
-    this.onDragMoveCallbacks = [];
-    this.onDragEndCallbacks = [];
-
     this.setupEventListeners();
   }
 
@@ -44,10 +39,6 @@ export class InputSystem {
     this.dragStartX = this.mouseX;
     this.dragStartY = this.mouseY;
     this.isDragging = true;
-
-    this.onDragStartCallbacks.forEach((callback) => {
-      callback(this.mouseX, this.mouseY);
-    });
   }
 
   /**
@@ -57,65 +48,20 @@ export class InputSystem {
     const rect = this.canvas.getBoundingClientRect();
     this.mouseX = event.clientX - rect.left;
     this.mouseY = event.clientY - rect.top;
-
-    if (this.isDragging) {
-      this.onDragMoveCallbacks.forEach((callback) => {
-        callback(this.mouseX, this.mouseY);
-      });
-    }
   }
 
   /**
    * Handle mouse up
    */
   handleMouseUp() {
-    if (this.isDragging) {
-      this.isDragging = false;
-      this.onDragEndCallbacks.forEach((callback) => {
-        callback();
-      });
-    }
+    this.isDragging = false;
   }
 
   /**
    * Handle mouse leave
    */
   handleMouseLeave() {
-    if (this.isDragging) {
-      this.isDragging = false;
-      this.onDragEndCallbacks.forEach((callback) => {
-        callback();
-      });
-    }
-  }
-
-  /**
-   * Register drag start callback
-   */
-  onDragStart(callback) {
-    this.onDragStartCallbacks.push(callback);
-  }
-
-  /**
-   * Register drag move callback
-   */
-  onDragMove(callback) {
-    this.onDragMoveCallbacks.push(callback);
-  }
-
-  /**
-   * Register drag end callback
-   */
-  onDragEnd(callback) {
-    this.onDragEndCallbacks.push(callback);
-  }
-
-  /**
-   * Update input system (called each frame)
-   */
-  update(deltaTime) {
-    // Process any input state updates
-    void deltaTime;
+    this.isDragging = false;
   }
 
   /**
@@ -126,9 +72,5 @@ export class InputSystem {
     this.canvas.removeEventListener("mousemove", this.handleMouseMove);
     this.canvas.removeEventListener("mouseup", this.handleMouseUp);
     this.canvas.removeEventListener("mouseleave", this.handleMouseLeave);
-
-    this.onDragStartCallbacks = [];
-    this.onDragMoveCallbacks = [];
-    this.onDragEndCallbacks = [];
   }
 }
