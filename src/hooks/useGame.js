@@ -61,6 +61,9 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         const textures = await game.renderer.loadTextures([
           { key: "start", url: "/start.png" },
           { key: "finish", url: "/finish.png" },
+          // Coin images
+          { key: "coin", url: "/coin.png" },
+          { key: "coin-gold", url: "/coin-gold.png" },
           // Car images
           { key: "truck-orange", url: "/assets/truck-orange.png" },
           { key: "truck-blue", url: "/assets/truck-blue.png" },
@@ -198,6 +201,16 @@ export function useGame(canvasRef, config, scrollContainerRef) {
             road,
             chicken,
             containerElement,
+          );
+        }
+
+        // Initialize coin manager with road and chicken
+        if (game.coinManager) {
+          game.coinManager.initialize(
+            entityManager,
+            game.renderer,
+            road,
+            chicken,
           );
         }
 
