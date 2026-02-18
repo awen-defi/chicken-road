@@ -1,12 +1,22 @@
 /**
- * EntityManager - Manages all game entities
- * Handles entity lifecycle and batch operations
+ * EntityManager - Manages all game entities with Pixi.js integration
+ * Handles entity lifecycle, batch operations, and stage management
  */
 export class EntityManager {
-  constructor() {
+  constructor(pixiRenderer = null) {
     this.entities = [];
     this.entitiesToAdd = [];
     this.entitiesToRemove = [];
+    this.pixiRenderer = pixiRenderer;
+    this.stage = pixiRenderer ? pixiRenderer.getStage() : null;
+  }
+
+  /**
+   * Set the Pixi renderer (for adding entities to stage)
+   */
+  setPixiRenderer(pixiRenderer) {
+    this.pixiRenderer = pixiRenderer;
+    this.stage = pixiRenderer ? pixiRenderer.getStage() : null;
   }
 
   /**
@@ -43,15 +53,36 @@ export class EntityManager {
   update(deltaTime) {
     // Process additions (batch operation)
     if (this.entitiesToAdd.length > 0) {
-      this.entities.push(...this.entitiesToAdd);
+      for (let i = 0; i < this.entitiesToAdd.length; i++) {
+        const entity = this.entitiesToAdd[i];
+        if (!entity) continue;
+
+        this.entities.push(entity);
+
+        // Add entity's display object to Pixi stage
+        if (this.stage && entity.getDisplayObject) {
+          const displayObject = entity.getDisplayObject();
+          if (displayObject && !displayObject.destroyed) {
+            try {
+              this.stage.addChild(displayObject);
+            } catch (e) {
+              console.warn("Failed to add entity to stage:", e);
+            }
+          }
+        }
+      }
       this.entitiesToAdd.length = 0; // Faster than = []
     }
 
     // Update active entities
     for (let i = 0; i < this.entities.length; i++) {
       const entity = this.entities[i];
-      if (entity.active) {
-        entity.update(deltaTime);
+      if (entity && entity.active) {
+        try {
+          entity.update(deltaTime);
+        } catch (e) {
+          console.warn("Error updating entity:", e);
+        }
       }
     }
 
@@ -60,8 +91,25 @@ export class EntityManager {
       // Use filter for better performance with many removals
       const toRemoveSet = new Set(this.entitiesToRemove);
       this.entities = this.entities.filter((entity) => {
-        if (toRemoveSet.has(entity)) {
-          entity.destroy();
+        if (!entity || toRemoveSet.has(entity)) {
+          if (entity) {
+            // Remove from Pixi stage
+            if (this.stage && entity.getDisplayObject) {
+              const displayObject = entity.getDisplayObject();
+              if (displayObject && displayObject.parent) {
+                try {
+                  this.stage.removeChild(displayObject);
+                } catch (e) {
+                  // Display object might already be removed
+                }
+              }
+            }
+            try {
+              entity.destroy();
+            } catch (e) {
+              // Entity might already be destroyed
+            }
+          }
           return false;
         }
         return true;
@@ -71,16 +119,12 @@ export class EntityManager {
   }
 
   /**
-   * Render all entities
+   * Render all entities - Pixi handles this automatically via stage
    */
   render(renderer) {
-    // Optimized: use for loop instead of for...of for better performance
-    for (let i = 0; i < this.entities.length; i++) {
-      const entity = this.entities[i];
-      if (entity.visible) {
-        entity.render(renderer);
-      }
-    }
+    // Pixi automatically renders all display objects in the stage
+    // This method is kept for compatibility but rendering is handled by Pixi
+    void renderer;
   }
 
   /**
@@ -89,7 +133,26 @@ export class EntityManager {
   clear() {
     // Optimized: destroy all and clear arrays efficiently
     for (let i = 0; i < this.entities.length; i++) {
-      this.entities[i].destroy();
+      const entity = this.entities[i];
+      if (!entity) continue;
+
+      // Remove from Pixi stage
+      if (this.stage && entity.getDisplayObject) {
+        const displayObject = entity.getDisplayObject();
+        if (displayObject && displayObject.parent) {
+          try {
+            this.stage.removeChild(displayObject);
+          } catch (e) {
+            // Display object might already be removed
+          }
+        }
+      }
+
+      try {
+        entity.destroy();
+      } catch (e) {
+        // Entity might already be destroyed
+      }
     }
     this.entities.length = 0;
     this.entitiesToAdd.length = 0;

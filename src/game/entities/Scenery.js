@@ -1,52 +1,61 @@
 import { BaseEntity } from "./BaseEntity.js";
+import { Sprite } from "pixi.js";
 
 /**
- * Scenery - Represents start and finish images
- * Handles scenery rendering
+ * Scenery - Represents start and finish images using Pixi sprites
+ * Handles scenery rendering with hardware acceleration
  */
 export class Scenery extends BaseEntity {
-  constructor(x, y, type, image = null) {
+  constructor(x, y, type, texture = null) {
     super(x, y);
 
     this.type = type; // 'start' or 'finish'
-    this.image = image;
+    this.sprite = null;
 
-    if (image) {
-      this.width = image.width;
-      this.height = image.height;
+    if (texture) {
+      this.setTexture(texture);
     }
   }
 
   /**
-   * Set the scenery image
+   * Set the scenery texture (Pixi texture)
    */
-  setImage(image) {
-    this.image = image;
-    if (image) {
-      this.width = image.width;
-      this.height = image.height;
+  setTexture(texture) {
+    // Guard against destroyed container
+    if (!this.container) {
+      console.warn("Cannot set texture: container is null");
+      return;
     }
+
+    if (this.sprite) {
+      this.sprite.destroy();
+    }
+
+    this.sprite = new Sprite(texture);
+    this.sprite.position.set(0, 0);
+    this.container.addChild(this.sprite);
+
+    this.width = texture.width;
+    this.height = texture.height;
   }
 
   /**
    * Update scenery (static)
    */
   update(deltaTime) {
+    super.update(deltaTime);
     // Static entity
     void deltaTime;
   }
 
   /**
-   * Render the scenery
+   * Destroy and cleanup
    */
-  render(renderer) {
-    if (!this.visible || !this.image) return;
-
-    // For finish image, only show half
-    if (this.type === "finish") {
-      renderer.drawImage(this.image, this.x, this.y, this.width, this.height);
-    } else {
-      renderer.drawImage(this.image, this.x, this.y, this.width, this.height);
+  destroy() {
+    if (this.sprite) {
+      this.sprite.destroy();
+      this.sprite = null;
     }
+    super.destroy();
   }
 }

@@ -1,30 +1,90 @@
 import { BaseEntity } from "./BaseEntity.js";
 
 /**
- * Chicken - The player character entity
- * Handles chicken rendering and animation
+ * Chicken - The player character entity using Spine animation
+ * Handles chicken rendering and animation with hardware acceleration
  */
 export class Chicken extends BaseEntity {
   constructor(x, y, config) {
     super(x, y);
 
     this.config = config;
-    this.baseSize = config.chickenSize || 280; // Slightly smaller than lane width (300px)
-    this.scale = config.chickenScale || 1;
+    this.baseSize = config.chickenSize || 280;
+    this.scale = config.chickenScale || 0.5; // Reduced default scale for Spine
     this.width = this.baseSize * this.scale;
     this.height = this.baseSize * this.scale;
 
     this.facingRight = true;
     this.currentAnimation = "idle";
-    this.animationTime = 0;
-    this.image = null;
+    this.spine = null;
   }
 
   /**
-   * Set the chicken sprite image
+   * Set the Spine animation
    */
-  setImage(image) {
-    this.image = image;
+  setSpine(spine) {
+    // Guard against destroyed container
+    if (!this.container) {
+      console.warn("Cannot set spine: container is null");
+      return;
+    }
+
+    if (this.spine) {
+      this.spine.destroy();
+    }
+
+    this.spine = spine;
+
+    if (!this.spine) {
+      console.warn("Spine instance is null");
+      return;
+    }
+
+    // Set scale
+    this.spine.scale.set(this.scale);
+
+    // Center the spine animation
+    // Spine animations are typically centered at origin, but we may need to adjust
+    this.spine.x = 0;
+    this.spine.y = 0;
+
+    // Set initial animation state
+    if (this.spine.state) {
+      // Try common animation names
+      const animationNames = ["idle", "walk", "run", "stand", "animation"];
+      let foundAnimation = false;
+
+      for (const animName of animationNames) {
+        try {
+          this.spine.state.setAnimation(0, animName, true);
+          this.currentAnimation = animName;
+          foundAnimation = true;
+          console.log(`\u2705 Playing Spine animation: ${animName}`);
+          break;
+        } catch (e) {
+          // Animation doesn't exist, try next
+        }
+      }
+
+      if (!foundAnimation) {
+        console.warn(
+          "No idle animation found, trying first available animation",
+        );
+        const animations = this.spine.spineData?.animations;
+        if (animations && animations.length > 0) {
+          this.spine.state.setAnimation(0, animations[0].name, true);
+          this.currentAnimation = animations[0].name;
+          console.log(`\u2705 Playing first animation: ${animations[0].name}`);
+        }
+      }
+    }
+
+    // Update scale based on facing direction
+    if (!this.facingRight) {
+      this.spine.scale.x = -Math.abs(this.spine.scale.x);
+    }
+
+    this.container.addChild(this.spine);
   }
 
   /**
@@ -32,15 +92,27 @@ export class Chicken extends BaseEntity {
    */
   setDirection(facingRight) {
     this.facingRight = facingRight;
+    if (this.spine) {
+      this.spine.scale.x =
+        Math.abs(this.spine.scale.x) * (facingRight ? 1 : -1);
+    }
   }
 
   /**
    * Play animation
    */
   playAnimation(animationName) {
-    if (this.currentAnimation !== animationName) {
-      this.currentAnimation = animationName;
-      this.animationTime = 0;
+    if (
+      this.spine &&
+      this.spine.state &&
+      this.currentAnimation !== animationName
+    ) {
+      try {
+        this.spine.state.setAnimation(0, animationName, true);
+        this.currentAnimation = animationName;
+      } catch (e) {
+        console.warn(`Animation ${animationName} not found`);
+      }
     }
   }
 
@@ -48,172 +120,22 @@ export class Chicken extends BaseEntity {
    * Update chicken state
    */
   update(deltaTime) {
+    super.update(deltaTime);
+
     if (!this.active) return;
 
-    this.animationTime += deltaTime;
+    // Spine animation updates automatically via Pixi ticker
+    // No manual update needed
   }
 
   /**
-   * Render the chicken
+   * Destroy and cleanup
    */
-  render(renderer) {
-    if (!this.visible) return;
-
-    const context = renderer.getContext();
-    context.save();
-
-    // Calculate render dimensions
-    const renderWidth = this.width;
-    const renderHeight = this.height;
-
-    // Simple idle animation - subtle bob
-    const bobOffset = Math.sin(this.animationTime * 3) * 2;
-
-    // Center position
-    const centerX = this.x;
-    const centerY = this.y + bobOffset;
-
-    // Draw the chicken
-    this.drawChicken(context, centerX, centerY, renderWidth, renderHeight);
-
-    context.restore();
-  }
-
-  /**
-   * Draw the chicken character (geometric representation)
-   */
-  drawChicken(context, x, y, width, height) {
-    const scale = width / 120; // Base size is 120
-
-    // Shadow
-    context.fillStyle = "rgba(0, 0, 0, 0.2)";
-    context.beginPath();
-    context.ellipse(
-      x,
-      y + height * 0.4,
-      width * 0.4,
-      height * 0.15,
-      0,
-      0,
-      Math.PI * 2,
-    );
-    context.fill();
-
-    // Body
-    context.fillStyle = "#FFFFFF";
-    context.beginPath();
-    context.ellipse(x, y, width * 0.35, height * 0.4, 0, 0, Math.PI * 2);
-    context.fill();
-    context.strokeStyle = "#E0E0E0";
-    context.lineWidth = 2 * scale;
-    context.stroke();
-
-    // Head
-    context.fillStyle = "#FFFFFF";
-    context.beginPath();
-    context.arc(
-      x + width * 0.2,
-      y - height * 0.25,
-      width * 0.25,
-      0,
-      Math.PI * 2,
-    );
-    context.fill();
-    context.strokeStyle = "#E0E0E0";
-    context.lineWidth = 2 * scale;
-    context.stroke();
-
-    // Comb (red top)
-    context.fillStyle = "#FF0000";
-    context.beginPath();
-    context.moveTo(x + width * 0.15, y - height * 0.45);
-    context.lineTo(x + width * 0.2, y - height * 0.52);
-    context.lineTo(x + width * 0.25, y - height * 0.45);
-    context.lineTo(x + width * 0.28, y - height * 0.5);
-    context.lineTo(x + width * 0.3, y - height * 0.42);
-    context.lineTo(x + width * 0.25, y - height * 0.35);
-    context.closePath();
-    context.fill();
-
-    // Beak
-    context.fillStyle = "#FFB347";
-    context.beginPath();
-    context.moveTo(x + width * 0.4, y - height * 0.2);
-    context.lineTo(x + width * 0.52, y - height * 0.23);
-    context.lineTo(x + width * 0.4, y - height * 0.15);
-    context.closePath();
-    context.fill();
-
-    // Eye
-    context.fillStyle = "#000000";
-    context.beginPath();
-    context.arc(
-      x + width * 0.28,
-      y - height * 0.28,
-      width * 0.04,
-      0,
-      Math.PI * 2,
-    );
-    context.fill();
-
-    // Eye highlight
-    context.fillStyle = "#FFFFFF";
-    context.beginPath();
-    context.arc(
-      x + width * 0.29,
-      y - height * 0.3,
-      width * 0.018,
-      0,
-      Math.PI * 2,
-    );
-    context.fill();
-
-    // Wattle (red thing under beak)
-    context.fillStyle = "#FF4444";
-    context.beginPath();
-    context.ellipse(
-      x + width * 0.3,
-      y - height * 0.12,
-      width * 0.06,
-      height * 0.08,
-      0.3,
-      0,
-      Math.PI * 2,
-    );
-    context.fill();
-
-    // Wing
-    context.fillStyle = "#F5F5F5";
-    context.beginPath();
-    context.ellipse(
-      x - width * 0.05,
-      y + height * 0.05,
-      width * 0.25,
-      height * 0.2,
-      -0.3,
-      0,
-      Math.PI * 2,
-    );
-    context.fill();
-    context.strokeStyle = "#D0D0D0";
-    context.lineWidth = 1.5 * scale;
-    context.stroke();
-
-    // Feet
-    context.fillStyle = "#FFB347";
-    // Left foot
-    context.beginPath();
-    context.moveTo(x - width * 0.15, y + height * 0.4);
-    context.lineTo(x - width * 0.25, y + height * 0.48);
-    context.lineTo(x - width * 0.05, y + height * 0.48);
-    context.closePath();
-    context.fill();
-    // Right foot
-    context.beginPath();
-    context.moveTo(x + width * 0.05, y + height * 0.4);
-    context.lineTo(x - width * 0.05, y + height * 0.48);
-    context.lineTo(x + width * 0.15, y + height * 0.48);
-    context.closePath();
-    context.fill();
+  destroy() {
+    if (this.spine) {
+      this.spine.destroy();
+      this.spine = null;
+    }
+    super.destroy();
   }
 }

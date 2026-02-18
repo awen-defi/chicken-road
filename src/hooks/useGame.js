@@ -1,52 +1,59 @@
 import { useEffect, useRef, useState } from "react";
 import { Game } from "../game/core/Game.js";
 import { EntityManager } from "../game/managers/EntityManager.js";
-import { AssetManager } from "../game/managers/AssetManager.js";
 import { InputSystem } from "../game/systems/InputSystem.js";
 import { Chicken } from "../game/entities/Chicken.js";
 import { Road } from "../game/entities/Road.js";
 import { Scenery } from "../game/entities/Scenery.js";
 
 /**
- * useGame - Custom hook to manage game instance lifecycle
+ * useGame - Custom hook to manage game instance lifecycle with Pixi.js
  * Initializes game, loads assets, creates entities, and manages game state
  */
 export function useGame(canvasRef, config) {
   const gameRef = useRef(null);
   const entityManagerRef = useRef(null);
-  const assetManagerRef = useRef(null);
   const chickenRef = useRef(null);
+  const isInitializedRef = useRef(false);
 
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || isInitializedRef.current) return;
 
     const canvas = canvasRef.current;
-    let isInitialized = false;
+    let game = null;
+    let aborted = false;
 
     const initializeGame = async () => {
       try {
+        // Prevent double initialization
+        if (isInitializedRef.current) return;
+        isInitializedRef.current = true;
+
         // Create managers
         const entityManager = new EntityManager();
-        const assetManager = new AssetManager();
         const inputSystem = new InputSystem(canvas);
 
         entityManagerRef.current = entityManager;
-        assetManagerRef.current = assetManager;
 
-        // Create game instance
-        const game = new Game(canvas, config);
+        // Create game instance with Pixi
+        game = new Game(canvas, config);
         gameRef.current = game;
 
-        // Initialize game with managers
-        await game.initialize(entityManager, assetManager, inputSystem);
+        // Initialize game with managers (this also initializes Pixi renderer)
+        await game.initialize(entityManager, null, inputSystem);
 
-        // Load assets
-        await assetManager.loadImages([
+        // Check if cleanup happened during async initialization
+        if (aborted || !game || !game.renderer) {
+          console.log("Game initialization aborted");
+          return;
+        }
+
+        // Load assets using Pixi's asset system
+        const textures = await game.renderer.loadTextures([
           { key: "start", url: "/start.png" },
           { key: "finish", url: "/finish.png" },
-          { key: "chicken", url: "/assets/chicken.png" },
           // Car images
           { key: "truck-orange", url: "/assets/truck-orange.png" },
           { key: "truck-blue", url: "/assets/truck-blue.png" },
@@ -54,29 +61,41 @@ export function useGame(canvasRef, config) {
           { key: "car-police", url: "/assets/car-police.png" },
         ]);
 
-        // Get loaded images
-        const startImage = assetManager.getImage("start");
-        const finishImage = assetManager.getImage("finish");
-        const chickenImage = assetManager.getImage("chicken");
+        // Load Spine animation for chicken
+        const chickenKeys = await game.renderer.loadSpineAnimation(
+          "chicken",
+          "/assets/chicken.json",
+          "/assets/chiken.atlas",
+        );
 
-        // Calculate layout
-        const startWidth = startImage.width;
-        const startHeight = startImage.height;
-        const finishWidth = finishImage.width;
-        const finishHeight = finishImage.height;
+        // Check if cleanup happened during async loading
+        if (aborted || !game || !game.renderer) {
+          console.log("Game initialization aborted after texture loading");
+          return;
+        }
+
+        // Get loaded textures
+        const startTexture = textures.start;
+        const finishTexture = textures.finish;
+
+        // Calculate layout using texture dimensions
+        const startWidth = startTexture.width;
+        const startHeight = startTexture.height;
+        const finishWidth = finishTexture.width;
+        const finishHeight = finishTexture.height;
         const roadHeight = startHeight;
         const roadWidth = config.laneWidth * config.laneCount;
 
         // Set canvas size
-        canvas.width = startWidth + roadWidth + finishWidth / 2;
-        canvas.height = Math.max(roadHeight, finishHeight);
+        const totalWidth = startWidth + roadWidth + finishWidth / 2;
+        const totalHeight = Math.max(roadHeight, finishHeight);
 
         // Update game renderer with new size
-        game.resize(canvas.width, canvas.height);
+        game.resize(totalWidth, totalHeight);
 
-        // Create entities
+        // Create entities with Pixi textures
         // Start scenery
-        const startScenery = new Scenery(0, 0, "start", startImage);
+        const startScenery = new Scenery(0, 0, "start", startTexture);
         entityManager.addEntity(startScenery);
 
         // Road
@@ -96,18 +115,26 @@ export function useGame(canvasRef, config) {
           startWidth + roadWidth,
           0,
           "finish",
-          finishImage,
+          finishTexture,
         );
         entityManager.addEntity(finishScenery);
 
-        // Chicken
+        // Chicken with Spine animation
         const chickenX = startWidth - 80;
         const chickenY = roadHeight * 0.7;
         const chicken = new Chicken(chickenX, chickenY, {
           chickenSize: config.chickenSize,
-          chickenScale: config.chickenScale,
+          chickenScale: config.chickenScale || 0.5,
         });
-        chicken.setImage(chickenImage);
+
+        // Create Spine instance for chicken using loaded asset keys
+        const chickenSpine = game.renderer.createSpine(chickenKeys);
+        if (chickenSpine) {
+          chicken.setSpine(chickenSpine);
+        } else {
+          console.error("Failed to create chicken Spine animation");
+        }
+
         chicken.setDirection(true); // Facing right
         entityManager.addEntity(chicken);
         chickenRef.current = chicken;
@@ -118,7 +145,7 @@ export function useGame(canvasRef, config) {
         if (game.carSpawner) {
           game.carSpawner.initialize(
             entityManager,
-            assetManager,
+            game.renderer,
             road,
             chicken,
             containerElement,
@@ -128,10 +155,10 @@ export function useGame(canvasRef, config) {
         // Start game loop
         game.start();
 
-        isInitialized = true;
         setIsLoading(false);
       } catch (error) {
         console.error("Failed to initialize game:", error);
+        isInitializedRef.current = false;
         setIsLoading(false);
       }
     };
@@ -140,16 +167,24 @@ export function useGame(canvasRef, config) {
 
     // Cleanup
     return () => {
-      if (isInitialized && gameRef.current) {
-        gameRef.current.destroy();
+      aborted = true;
+      isInitializedRef.current = false;
+
+      if (game) {
+        try {
+          game.destroy();
+        } catch (e) {
+          console.warn("Error during cleanup:", e);
+        }
+        game = null;
       }
+      gameRef.current = null;
     };
-  }, [canvasRef, config]);
+  }, []); // Empty deps - only run once
 
   return {
     gameRef,
     entityManagerRef,
-    assetManagerRef,
     chickenRef,
     isLoading,
   };

@@ -1,10 +1,9 @@
-import { GameLoop } from "./GameLoop.js";
-import { Renderer } from "./Renderer.js";
+import { PixiRenderer } from "./PixiRenderer.js";
 import { CarSpawner } from "../systems/CarSpawner.js";
 
 /**
- * Game - Main game class that orchestrates all game systems
- * Manages game state, entities, and rendering
+ * Game - Main game class that orchestrates all game systems using Pixi.js
+ * Manages game state, entities, and hardware-accelerated rendering
  */
 export class Game {
   constructor(canvas, config) {
@@ -12,9 +11,9 @@ export class Game {
     this.config = config;
     this.state = "idle"; // idle, playing, paused, gameover
 
-    // Core systems
-    this.renderer = new Renderer(canvas);
-    this.gameLoop = null;
+    // Core systems - using Pixi renderer
+    this.renderer = new PixiRenderer(canvas, config.renderer || {});
+    this.initialized = false;
 
     // Managers
     this.entityManager = null;
@@ -24,39 +23,48 @@ export class Game {
   }
 
   /**
-   * Initialize game systems
+   * Initialize game systems with Pixi
    */
   async initialize(entityManager, assetManager, inputSystem) {
+    // Initialize Pixi renderer first
+    await this.renderer.initialize();
+
     this.entityManager = entityManager;
     this.assetManager = assetManager;
     this.inputSystem = inputSystem;
 
+    // Connect EntityManager to Pixi stage
+    if (this.entityManager) {
+      this.entityManager.setPixiRenderer(this.renderer);
+    }
+
     // Initialize car spawner
     this.carSpawner = new CarSpawner(this.config.carSpawner || {});
+
+    this.initialized = true;
   }
 
   /**
-   * Start the game loop
+   * Start the game loop - Pixi uses its own ticker
    */
   start() {
-    if (this.gameLoop) {
-      this.gameLoop.stop();
+    if (!this.initialized || !this.renderer.app) {
+      console.error("Game not initialized");
+      return;
     }
 
     this.state = "playing";
-    this.gameLoop = new GameLoop(
-      this.update.bind(this),
-      this.render.bind(this),
-    );
-    this.gameLoop.start();
+
+    // Use Pixi's built-in ticker for optimal performance
+    this.renderer.app.ticker.add(this.gameLoop, this);
   }
 
   /**
    * Pause the game
    */
   pause() {
-    if (this.gameLoop) {
-      this.gameLoop.stop();
+    if (this.renderer.app) {
+      this.renderer.app.ticker.remove(this.gameLoop, this);
     }
     this.state = "paused";
   }
@@ -65,8 +73,8 @@ export class Game {
    * Resume the game
    */
   resume() {
-    if (this.gameLoop && this.state === "paused") {
-      this.gameLoop.start();
+    if (this.state === "paused" && this.renderer.app) {
+      this.renderer.app.ticker.add(this.gameLoop, this);
       this.state = "playing";
     }
   }
@@ -75,10 +83,23 @@ export class Game {
    * Reset the game
    */
   reset() {
-    if (this.gameLoop) {
-      this.gameLoop.stop();
+    if (this.renderer.app) {
+      this.renderer.app.ticker.remove(this.gameLoop, this);
     }
     this.state = "idle";
+  }
+
+  /**
+   * Main game loop - called by Pixi ticker
+   */
+  gameLoop(ticker) {
+    if (this.state !== "playing") return;
+
+    // Delta time in seconds (Pixi ticker provides delta in frames, convert to seconds)
+    const deltaTime = ticker.deltaTime / 60; // 60 FPS baseline
+
+    this.update(deltaTime);
+    // Pixi handles rendering automatically, no need to call render()
   }
 
   /**
@@ -99,38 +120,28 @@ export class Game {
   }
 
   /**
-   * Render game
-   */
-  render() {
-    // Clear canvas
-    this.renderer.clear();
-
-    // Begin rendering (prepares offscreen buffer if using double buffering)
-    this.renderer.begin();
-
-    // Render all entities without camera transform
-    // (using container scroll instead for better performance)
-    if (this.entityManager) {
-      this.entityManager.render(this.renderer);
-    }
-
-    // End rendering (swaps buffers if using double buffering)
-    this.renderer.end();
-  }
-
-  /**
    * Resize canvas
    */
   resize(width, height) {
-    this.renderer.resize(width, height);
+    if (this.renderer) {
+      this.renderer.resize(width, height);
+    }
   }
 
   /**
    * Destroy game and cleanup resources
    */
   destroy() {
-    if (this.gameLoop) {
-      this.gameLoop.destroy();
+    // Stop game first
+    this.state = "idle";
+
+    // Remove ticker callback safely
+    if (this.renderer && this.renderer.app && this.renderer.app.ticker) {
+      try {
+        this.renderer.app.ticker.remove(this.gameLoop, this);
+      } catch (e) {
+        // Ticker might already be destroyed
+      }
     }
 
     if (this.inputSystem) {
@@ -144,5 +155,11 @@ export class Game {
     if (this.entityManager) {
       this.entityManager.clear();
     }
+
+    if (this.renderer) {
+      this.renderer.destroy();
+    }
+
+    this.initialized = false;
   }
 }

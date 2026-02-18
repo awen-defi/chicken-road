@@ -1,5 +1,5 @@
 {
-  "name": "ChickenRoadTwoClient",
+  "name": "chicken-road-game",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@esotericsoftware/spine-canvas": "^4.2.102",
+    "@esotericsoftware/spine-pixi-v8": "^4.2.102",
+    "pixi.js": "^8.16.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

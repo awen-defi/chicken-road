@@ -1,8 +1,9 @@
 import { BaseEntity } from "./BaseEntity.js";
+import { Sprite } from "pixi.js";
 
 /**
- * Car - Vehicle obstacle entity
- * Handles car rendering, movement, and lifecycle
+ * Car - Vehicle obstacle entity using Pixi sprites
+ * Handles car rendering, movement, and lifecycle with hardware acceleration
  */
 export class Car extends BaseEntity {
   constructor(x, y, config) {
@@ -18,7 +19,7 @@ export class Car extends BaseEntity {
     this.width = 280;
     this.height = 140; // Will be recalculated based on image aspect ratio
 
-    this.image = null;
+    this.sprite = null;
     this.isOffscreen = false;
 
     // For object pooling
@@ -26,16 +27,35 @@ export class Car extends BaseEntity {
   }
 
   /**
-   * Set the car sprite image and calculate height to maintain aspect ratio
+   * Set the car sprite texture and calculate height to maintain aspect ratio
    */
-  setImage(image) {
-    this.image = image;
+  setTexture(texture) {
+    // Guard against destroyed container
+    if (!this.container) {
+      console.warn("Cannot set texture: container is null");
+      return;
+    }
 
-    // Calculate height to maintain image aspect ratio (prevent distortion)
-    if (image && image.width > 0 && image.height > 0) {
-      const aspectRatio = image.height / image.width;
+    if (this.sprite) {
+      this.sprite.destroy();
+    }
+
+    this.sprite = new Sprite(texture);
+
+    // Set anchor to center
+    this.sprite.anchor.set(0.5);
+
+    // Calculate height to maintain texture aspect ratio (prevent distortion)
+    if (texture && texture.width > 0 && texture.height > 0) {
+      const aspectRatio = texture.height / texture.width;
       this.height = this.width * aspectRatio;
     }
+
+    // Set sprite size
+    this.sprite.width = this.width;
+    this.sprite.height = this.height;
+
+    this.container.addChild(this.sprite);
   }
 
   /**
@@ -52,35 +72,24 @@ export class Car extends BaseEntity {
     this.visible = true;
     this.isOffscreen = false;
     this.inUse = true;
+
+    // Guard against null container
+    if (this.container) {
+      this.container.position.set(x, y);
+      this.container.visible = true;
+    }
   }
 
   /**
    * Update car position
    */
   update(deltaTime) {
+    super.update(deltaTime);
+
     if (!this.active) return;
 
     // Move car downward along the lane
     this.y += this.speed * deltaTime;
-  }
-
-  /**
-   * Render the car (optimized for performance and anti-flickering)
-   */
-  render(renderer) {
-    if (!this.visible || !this.image) return;
-
-    const context = renderer.getContext();
-
-    // Center the car in its lane
-    const renderX = Math.round(this.x - this.width / 2); // Round to avoid sub-pixel rendering
-    const renderY = Math.round(this.y - this.height / 2);
-    const renderWidth = Math.round(this.width);
-    const renderHeight = Math.round(this.height);
-
-    // Draw car image (maintaining aspect ratio, no distortion)
-    // Using rounded values prevents sub-pixel rendering artifacts and flickering
-    context.drawImage(this.image, renderX, renderY, renderWidth, renderHeight);
   }
 
   /**
@@ -90,6 +99,9 @@ export class Car extends BaseEntity {
     this.inUse = false;
     this.active = false;
     this.visible = false;
+    if (this.container) {
+      this.container.visible = false;
+    }
   }
 
   /**
@@ -134,5 +146,16 @@ export class Car extends BaseEntity {
       width: this.width,
       height: this.height,
     };
+  }
+
+  /**
+   * Destroy and cleanup
+   */
+  destroy() {
+    if (this.sprite) {
+      this.sprite.destroy();
+      this.sprite = null;
+    }
+    super.destroy();
   }
 }

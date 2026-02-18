@@ -8,7 +8,7 @@ export class CarSpawner {
   constructor(config) {
     this.config = config;
     this.entityManager = null;
-    this.assetManager = null;
+    this.pixiRenderer = null; // Use Pixi renderer instead of AssetManager
     this.road = null;
     this.chicken = null; // Reference to chicken for smart spawning
     this.containerElement = null; // For viewport detection
@@ -54,9 +54,9 @@ export class CarSpawner {
   /**
    * Initialize the spawner
    */
-  initialize(entityManager, assetManager, road, chicken, containerElement) {
+  initialize(entityManager, pixiRenderer, road, chicken, containerElement) {
     this.entityManager = entityManager;
-    this.assetManager = assetManager;
+    this.pixiRenderer = pixiRenderer; // Use Pixi renderer for texture access
     this.road = road;
     this.chicken = chicken; // Store chicken reference for smart spawning
     this.containerElement = containerElement; // For viewport detection
@@ -106,12 +106,19 @@ export class CarSpawner {
    * Get a car from the pool or create new one
    */
   acquireCar() {
-    // Try to find an unused car in the pool
-    let car = this.carPool.find((c) => !c.inUse);
+    // Try to find an unused car in the pool with valid container
+    let car = this.carPool.find((c) => !c.inUse && c.container);
 
-    // If pool is exhausted, create a new car
+    // If pool is exhausted or all cars invalid, create a new car
     if (!car) {
       car = new Car(0, 0, {});
+
+      // Verify the car was created with a valid container
+      if (!car.container) {
+        console.error("Car created with null container - pool corrupted");
+        return null;
+      }
+
       this.carPool.push(car);
     }
 
@@ -119,13 +126,28 @@ export class CarSpawner {
   }
 
   /**
-   * Release car back to pool
+   * Release car back to pool (don't destroy - reuse)
    */
   releaseCar(car) {
+    // Hide car but keep container for pooling
     car.release();
+
+    // Remove from active cars list
     const index = this.activeCars.indexOf(car);
     if (index !== -1) {
       this.activeCars.splice(index, 1);
+    }
+
+    // Remove from stage (but don't destroy container)
+    if (this.entityManager && this.entityManager.stage && car.container) {
+      try {
+        const stage = this.entityManager.stage;
+        if (car.container.parent === stage) {
+          stage.removeChild(car.container);
+        }
+      } catch (e) {
+        // Container might already be removed
+      }
     }
   }
 
@@ -163,6 +185,11 @@ export class CarSpawner {
    * Spawn a car in a lane near the chicken (next 5 lanes ahead)
    */
   spawnCar() {
+    // Don't spawn if not properly initialized
+    if (!this.entityManager || !this.pixiRenderer || this.lanes.length === 0) {
+      return;
+    }
+
     if (!this.chicken) {
       // Fallback to random lane if chicken not available
       this.spawnCarInLane(Math.floor(Math.random() * this.lanes.length));
@@ -222,6 +249,8 @@ export class CarSpawner {
    * Spawn a car in a specific lane
    */
   spawnCarInLane(laneIndex) {
+    // Guard against invalid state
+    if (!this.pixiRenderer || !this.entityManager) return;
     if (laneIndex < 0 || laneIndex >= this.lanes.length) return;
 
     const lane = this.lanes[laneIndex];
@@ -239,13 +268,19 @@ export class CarSpawner {
     // Get car from pool
     const car = this.acquireCar();
 
+    // Validate car from pool
+    if (!car || !car.container) {
+      console.warn("Failed to acquire valid car from pool");
+      return;
+    }
+
     // Get random car type
     const carType = this.getRandomCarType();
 
-    // Get car image
-    const image = this.assetManager.getImage(carType.imageKey);
-    if (!image) {
-      console.warn(`Car image not found: ${carType.imageKey}`);
+    // Get car texture from Pixi renderer
+    const texture = this.pixiRenderer.getTexture(carType.imageKey);
+    if (!texture) {
+      console.warn(`Car texture not found: ${carType.imageKey}`);
       return;
     }
 
@@ -271,20 +306,41 @@ export class CarSpawner {
       roadBottomY: this.roadY + this.roadHeight,
     });
 
-    car.setImage(image);
+    car.setTexture(texture);
 
     // Set cooldown for this lane
     this.setLaneCooldown(lane.index);
 
-    // Add to active cars and entity manager
+    // Add to active cars
     this.activeCars.push(car);
-    this.entityManager.addEntity(car);
+
+    // Manually add to stage (don't use entityManager for pooled objects)
+    if (this.entityManager && this.entityManager.stage && car.container) {
+      try {
+        this.entityManager.stage.addChild(car.container);
+      } catch (e) {
+        console.warn("Failed to add car to stage:", e);
+      }
+    }
   }
 
   /**
    * Update spawner (optimized)
    */
   update(deltaTime) {
+    // Don't spawn if not properly initialized
+    if (!this.entityManager || !this.pixiRenderer || !this.road) {
+      return;
+    }
+
+    // Update all active cars
+    for (let i = 0; i < this.activeCars.length; i++) {
+      const car = this.activeCars[i];
+      if (car && car.active) {
+        car.update(deltaTime);
+      }
+    }
+
     // Update spawn timer
     this.spawnTimer += deltaTime;
 
@@ -316,7 +372,7 @@ export class CarSpawner {
             !car.active ||
             !car.isInViewport(scrollX, scrollY, viewportWidth, viewportHeight)
           ) {
-            this.entityManager.removeEntity(car);
+            // Don't call entityManager.removeEntity - we're pooling
             this.releaseCar(car);
           }
         }
@@ -325,7 +381,7 @@ export class CarSpawner {
         for (let i = this.activeCars.length - 1; i >= 0; i--) {
           const car = this.activeCars[i];
           if (car.isOffscreen || !car.active) {
-            this.entityManager.removeEntity(car);
+            // Don't call entityManager.removeEntity - we're pooling
             this.releaseCar(car);
           }
         }
@@ -356,16 +412,24 @@ export class CarSpawner {
    * Clean up all cars
    */
   cleanup() {
-    // Release all active cars
+    // Release all active cars back to pool (don't destroy)
     for (const car of this.activeCars) {
-      this.entityManager.removeEntity(car);
-      car.release();
+      if (car) {
+        this.releaseCar(car);
+      }
     }
     this.activeCars = [];
 
-    // Reset pool
+    // Now destroy all pooled cars since we're shutting down
     for (const car of this.carPool) {
-      car.release();
+      if (car && car.container) {
+        try {
+          car.destroy();
+        } catch (e) {
+          // Car might already be destroyed
+        }
+      }
     }
+    this.carPool = [];
   }
 }

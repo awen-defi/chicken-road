@@ -68,9 +68,15 @@ export class InputSystem {
    * Clean up event listeners
    */
   destroy() {
-    this.canvas.removeEventListener("mousedown", this.handleMouseDown);
-    this.canvas.removeEventListener("mousemove", this.handleMouseMove);
-    this.canvas.removeEventListener("mouseup", this.handleMouseUp);
-    this.canvas.removeEventListener("mouseleave", this.handleMouseLeave);
+    if (!this.canvas) return;
+
+    try {
+      this.canvas.removeEventListener("mousedown", this.handleMouseDown);
+      this.canvas.removeEventListener("mousemove", this.handleMouseMove);
+      this.canvas.removeEventListener("mouseup", this.handleMouseUp);
+      this.canvas.removeEventListener("mouseleave", this.handleMouseLeave);
+    } catch (e) {
+      // Event listeners might already be removed
+    }
   }
 }
