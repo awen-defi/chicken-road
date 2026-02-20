@@ -24,6 +24,10 @@ export class Game {
     this.carSpawner = null;
     this.coinManager = null;
     this.gateManager = null;
+
+    // Entity references for dynamic updates
+    this.road = null;
+    this.finishScenery = null;
   }
 
   /**
@@ -137,6 +141,109 @@ export class Game {
     if (this.gateManager) {
       this.gateManager.update(deltaTime);
     }
+  }
+
+  /**
+   * Get current coin multiplier from CoinManager
+   */
+  getCurrentMultiplier() {
+    if (this.coinManager) {
+      return this.coinManager.getCurrentMultiplier();
+    }
+    return 1.0;
+  }
+
+  /**
+   * Set entity references for dynamic updates
+   */
+  setEntityReferences(road, finishScenery) {
+    this.road = road;
+    this.finishScenery = finishScenery;
+  }
+
+  /**
+   * Update game difficulty and recreate coins
+   */
+  updateDifficulty(newDifficulty, newConfig, startWidth) {
+    if (!this.initialized) {
+      console.warn("Cannot update difficulty: game not initialized");
+      return;
+    }
+
+    console.log(
+      `🔄 Updating difficulty to ${newDifficulty} with ${newConfig.laneCount} lanes`,
+    );
+
+    try {
+      // 1. Update road lane count
+      if (this.road) {
+        this.road.updateLaneCount(newConfig.laneCount);
+        console.log(`✅ Road updated to ${newConfig.laneCount} lanes`);
+      }
+
+      // 2. Update finish scenery position
+      if (this.finishScenery && startWidth !== undefined) {
+        const newRoadWidth = newConfig.laneWidth * newConfig.laneCount;
+        this.finishScenery.x = startWidth + newRoadWidth;
+        console.log(
+          `✅ Finish scenery repositioned to x=${this.finishScenery.x}`,
+        );
+      }
+
+      // 3. Update car spawner lanes
+      if (this.carSpawner && this.road) {
+        this.carSpawner.updateLaneCount(this.road);
+        console.log(`✅ Car spawner updated with new lanes`);
+      }
+
+      // 4. Clear and reset gate manager
+      if (this.gateManager) {
+        this.gateManager.destroy();
+        console.log(`✅ Gates cleared`);
+      }
+
+      // 5. Update coin manager
+      if (this.coinManager) {
+        this.coinManager.updateDifficulty(newDifficulty);
+        console.log(`✅ Coins updated for ${newDifficulty} difficulty`);
+      }
+
+      console.log(
+        `✅ Difficulty successfully updated to ${newDifficulty} with ${newConfig.laneCount} lanes`,
+      );
+    } catch (error) {
+      console.error("Error updating difficulty:", error);
+    }
+  }
+
+  /**
+   * Reset game to initial state (for new game)
+   */
+  resetGame() {
+    if (!this.initialized) {
+      console.warn("Cannot reset game: game not initialized");
+      return;
+    }
+
+    // Reset coin manager
+    if (this.coinManager) {
+      try {
+        this.coinManager.reset();
+      } catch (error) {
+        console.error("Error resetting coins:", error);
+      }
+    }
+
+    // Reset gate manager
+    if (this.gateManager) {
+      try {
+        this.gateManager.destroy();
+      } catch (error) {
+        console.error("Error resetting gates:", error);
+      }
+    }
+
+    console.log("🔄 Game reset to initial state");
   }
 
   /**

@@ -8,6 +8,7 @@ export function ControlPanel({
   difficulty,
   setDifficulty,
   onPlay,
+  onCashout,
   gameState = "idle",
   score = 0,
   disabled = false,
@@ -104,6 +105,13 @@ export function ControlPanel({
         >
           {buttonText}
         </button>
+
+        {/* Cashout Button - only visible when playing */}
+        {isPlaying && (
+          <button className="cashout-button" onClick={onCashout}>
+            CASHOUT
+          </button>
+        )}
       </div>
     </div>
   );

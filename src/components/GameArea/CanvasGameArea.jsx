@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useMemo } from "react";
 import { useGame } from "../../hooks";
 import { getDefaultConfig } from "../../config/gameConfig";
 import "./CanvasGameArea.css";
@@ -7,9 +7,14 @@ import "./CanvasGameArea.css";
  * CanvasGameArea - Main game canvas component
  * Uses the new game architecture with separated game loop
  */
-export function CanvasGameArea({ onJumpReady, scrollContainerRef }) {
+export function CanvasGameArea({
+  onJumpReady,
+  scrollContainerRef,
+  difficulty,
+}) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
+  const previousDifficultyRef = useRef(difficulty);
 
   // Pass containerRef to parent for scroll control
   useEffect(() => {
@@ -18,16 +23,47 @@ export function CanvasGameArea({ onJumpReady, scrollContainerRef }) {
     }
   }, [scrollContainerRef]);
 
-  // Initialize game with default configuration
-  const config = getDefaultConfig();
-  const { isLoading, jumpChicken } = useGame(canvasRef, config, containerRef);
+  // Initialize game with default configuration and difficulty
+  // Memoize config to only change when difficulty changes
+  const config = useMemo(
+    () => ({
+      ...getDefaultConfig(difficulty), // Pass difficulty to get correct lane count
+      difficulty,
+    }),
+    [difficulty],
+  );
+
+  const {
+    isLoading,
+    jumpChicken,
+    getCurrentMultiplier,
+    updateDifficulty,
+    resetGame,
+  } = useGame(canvasRef, config, containerRef);
+
+  // Handle difficulty changes
+  useEffect(() => {
+    if (previousDifficultyRef.current !== difficulty) {
+      console.log(
+        `🔄 Difficulty changed from ${previousDifficultyRef.current} to ${difficulty}`,
+      );
+
+      // Update difficulty in the game if it's not the initial load
+      if (previousDifficultyRef.current && updateDifficulty) {
+        const newConfig = getDefaultConfig(difficulty);
+        updateDifficulty(difficulty, newConfig);
+      }
+
+      previousDifficultyRef.current = difficulty;
+    }
+  }, [difficulty, updateDifficulty]);
 
   // Notify parent when jump function is ready
   useEffect(() => {
     if (!isLoading && jumpChicken && onJumpReady) {
-      onJumpReady(jumpChicken);
+      onJumpReady(jumpChicken, getCurrentMultiplier, resetGame);
     }
-  }, [isLoading, jumpChicken, onJumpReady]);
+  }, [isLoading, jumpChicken, getCurrentMultiplier, resetGame, onJumpReady]);
 
   // Handle mouse drag scrolling directly on the container
   useEffect(() => {

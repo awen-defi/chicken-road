@@ -100,6 +100,29 @@ export class CarSpawner {
   }
 
   /**
+   * Update lane count when difficulty changes
+   */
+  updateLaneCount(road) {
+    console.log(
+      `🔄 CarSpawner updating lanes from ${this.lanes.length} to ${road.laneCount}`,
+    );
+
+    // Clear existing lanes
+    this.lanes.length = 0;
+
+    // Update road reference and properties
+    this.road = road;
+    this.startX = road.x;
+    this.roadWidth = road.width;
+    this.laneWidth = road.laneWidth;
+
+    // Recalculate lanes
+    this.setupLanes();
+
+    console.log(`✅ CarSpawner now has ${this.lanes.length} lanes configured`);
+  }
+
+  /**
    * Initialize object pool
    */
   initializePool() {

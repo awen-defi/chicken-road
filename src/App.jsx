@@ -9,21 +9,31 @@ export default function App() {
   const [gameState, setGameState] = useState("idle"); // idle, playing, won, lost
   const [score, setScore] = useState(0);
   const [jumpChickenFn, setJumpChickenFn] = useState(null);
+  const [getCurrentMultiplierFn, setGetCurrentMultiplierFn] = useState(null);
+  const [resetGameFn, setResetGameFn] = useState(null);
   const scrollContainerRef = useRef(null);
 
   // Handle when jump function is ready from game
-  const handleJumpReady = useCallback((jumpFn) => {
+  const handleJumpReady = useCallback((jumpFn, getMultiplierFn, resetFn) => {
     setJumpChickenFn(() => jumpFn);
+    setGetCurrentMultiplierFn(() => getMultiplierFn);
+    setResetGameFn(() => resetFn);
   }, []);
 
   // Handle play/go button click
   const handlePlay = useCallback(() => {
-    if (gameState === "idle") {
+    if (gameState === "idle" || gameState === "won" || gameState === "lost") {
       // Start new game
       if (balance < betAmount) {
         alert("Insufficient balance!");
         return;
       }
+
+      // Reset game if coming from won/lost state
+      if ((gameState === "won" || gameState === "lost") && resetGameFn) {
+        resetGameFn();
+      }
+
       setBalance((prev) => prev - betAmount);
       setGameState("playing");
       setScore(0);
@@ -43,10 +53,50 @@ export default function App() {
         const success = jumpChickenFn();
         if (success) {
           setScore((prev) => prev + 1);
+        } else {
+          // Chicken reached the end - calculate winnings
+          if (getCurrentMultiplierFn) {
+            const multiplier = getCurrentMultiplierFn();
+            const winnings = betAmount * multiplier;
+            const totalPayout = betAmount + winnings; // Return original bet + winnings
+
+            setBalance((prev) => prev + totalPayout);
+            setGameState("won");
+
+            console.log(
+              `🎉 Game Won! Multiplier: ${multiplier}x, Winnings: $${winnings.toFixed(2)}, Total Payout: $${totalPayout.toFixed(2)}`,
+            );
+          }
         }
       }
     }
-  }, [gameState, betAmount, balance, jumpChickenFn]);
+  }, [
+    gameState,
+    betAmount,
+    balance,
+    jumpChickenFn,
+    getCurrentMultiplierFn,
+    resetGameFn,
+  ]);
+
+  // Handle cashout button click
+  const handleCashout = useCallback(() => {
+    if (gameState !== "playing") return;
+
+    // Get current multiplier from game
+    const multiplier = getCurrentMultiplierFn ? getCurrentMultiplierFn() : 1.0;
+
+    // Calculate final price: bet amount * multiplier + original bet
+    const winnings = betAmount * multiplier;
+    const totalPayout = betAmount + winnings; // Return original bet + winnings
+
+    setBalance((prev) => prev + totalPayout);
+    setGameState("won");
+
+    console.log(
+      `💰 Cashed out! Multiplier: ${multiplier}x, Winnings: $${winnings.toFixed(2)}, Total Payout: $${totalPayout.toFixed(2)}`,
+    );
+  }, [gameState, betAmount, getCurrentMultiplierFn]);
 
   return (
     <div className="app-container">
@@ -54,6 +104,7 @@ export default function App() {
       <GameArea
         onJumpReady={handleJumpReady}
         scrollContainerRef={scrollContainerRef}
+        difficulty={difficulty}
       />
       <ControlPanel
         betAmount={betAmount}
@@ -61,6 +112,7 @@ export default function App() {
         difficulty={difficulty}
         setDifficulty={setDifficulty}
         onPlay={handlePlay}
+        onCashout={handleCashout}
         gameState={gameState}
         score={score}
         disabled={gameState === "playing"}

@@ -41,9 +41,25 @@ export class Coin extends BaseEntity {
 
     this.container.addChild(this.sprite);
 
-    // Create text label for the value
+    // Create text label for the value with smart formatting
+    let displayText;
+    if (this.value >= 1000) {
+      // For large numbers, use compact notation (e.g., "1.2K", "3.6M")
+      if (this.value >= 1000000) {
+        displayText = (this.value / 1000000).toFixed(1) + "M x";
+      } else {
+        displayText = (this.value / 1000).toFixed(1) + "K x";
+      }
+    } else if (this.value >= 100) {
+      displayText = this.value.toFixed(0) + "x";
+    } else if (this.value >= 10) {
+      displayText = this.value.toFixed(1) + "x";
+    } else {
+      displayText = this.value.toFixed(2) + "x";
+    }
+
     this.text = new Text({
-      text: this.value.toFixed(2) + "x",
+      text: displayText,
       style: {
         fontFamily: "Arial",
         fontSize: 24,

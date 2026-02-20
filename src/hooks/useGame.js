@@ -14,6 +14,8 @@ export function useGame(canvasRef, config, scrollContainerRef) {
   const gameRef = useRef(null);
   const entityManagerRef = useRef(null);
   const chickenRef = useRef(null);
+  const roadRef = useRef(null); // Store road reference for updates
+  const finishSceneryRef = useRef(null); // Store finish scenery reference for updates
   const isInitializedRef = useRef(false);
 
   // Lane tracking for chicken jumps
@@ -22,6 +24,10 @@ export function useGame(canvasRef, config, scrollContainerRef) {
   const totalLanesRef = useRef(0); // Total number of lanes including sidewalks
   const startWidthRef = useRef(0); // Store start scenery width for camera calculations
   const roadWidthRef = useRef(0); // Store total road width
+
+  // Layout dimensions for canvas resizing
+  const finishWidthRef = useRef(0); // Store finish scenery width
+  const roadHeightRef = useRef(0); // Store road height
 
   const [isLoading, setIsLoading] = useState(true);
 
@@ -105,6 +111,10 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         const totalWidth = startWidth + roadWidth + finishWidth / 2;
         const totalHeight = Math.max(roadHeight, finishHeight);
 
+        // Store layout dimensions for later resizing
+        finishWidthRef.current = finishWidth;
+        roadHeightRef.current = roadHeight;
+
         // Update game renderer with new size
         game.resize(totalWidth, totalHeight);
 
@@ -134,6 +144,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           dashPattern: config.dashPattern,
         });
         entityManager.addEntity(road);
+        roadRef.current = road; // Store reference for updates
 
         // Finish scenery (only half visible)
         const finishScenery = new Scenery(
@@ -144,6 +155,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           sceneryScale,
         );
         entityManager.addEntity(finishScenery);
+        finishSceneryRef.current = finishScenery; // Store reference for updates
 
         // Chicken with Spine animation
         const chickenX = startWidth - 160;
@@ -227,6 +239,9 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           );
         }
 
+        // Set entity references in game for dynamic updates
+        game.setEntityReferences(road, finishScenery);
+
         // Start game loop
         game.start();
 
@@ -255,7 +270,8 @@ export function useGame(canvasRef, config, scrollContainerRef) {
       }
       gameRef.current = null;
     };
-  }, []); // Empty deps - only run once
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Initialize once - handle difficulty changes separately
 
   // Jump function to move chicken to next lane (memoized to prevent re-renders)
   const jumpChicken = useCallback(() => {
@@ -338,11 +354,124 @@ export function useGame(canvasRef, config, scrollContainerRef) {
     return true;
   }, [scrollContainerRef]);
 
+  // Get current coin multiplier
+  const getCurrentMultiplier = useCallback(() => {
+    const game = gameRef.current;
+    if (!game) return 1.0;
+    return game.getCurrentMultiplier();
+  }, []);
+
+  // Update game difficulty dynamically
+  const updateDifficulty = useCallback(
+    (newDifficulty, newConfig) => {
+      const game = gameRef.current;
+      const road = roadRef.current;
+      const chicken = chickenRef.current;
+
+      if (!game || !road || !chicken) {
+        console.warn("Cannot update difficulty: game not fully initialized");
+        return;
+      }
+
+      console.log(
+        `🔄 useGame: Updating difficulty to ${newDifficulty} with ${newConfig.laneCount} lanes`,
+      );
+
+      // Get start width from ref
+      const startWidth = startWidthRef.current;
+
+      // Call game updateDifficulty with all required params
+      game.updateDifficulty(newDifficulty, newConfig, startWidth);
+
+      // Recalculate lane positions for chicken jumping
+      const lanePositions = [];
+      const chickenStartX = lanePositionsRef.current[0]; // Original start position
+
+      // Starting position (same as before)
+      lanePositions.push(chickenStartX);
+
+      // Road lane positions (center of each lane)
+      for (let i = 0; i < newConfig.laneCount; i++) {
+        const laneCenter =
+          startWidth + i * newConfig.laneWidth + newConfig.laneWidth / 2;
+        lanePositions.push(laneCenter);
+      }
+
+      // Finish position (on finish sidewalk)
+      const newRoadWidth = newConfig.laneWidth * newConfig.laneCount;
+      const finishX = startWidth + newRoadWidth + 160;
+      lanePositions.push(finishX);
+
+      // Update refs
+      lanePositionsRef.current = lanePositions;
+      totalLanesRef.current = lanePositions.length;
+      roadWidthRef.current = newRoadWidth;
+
+      // Reset chicken to starting position
+      chicken.x = chickenStartX;
+      chicken.container.position.x = chickenStartX;
+      currentLaneRef.current = 0;
+
+      // Reset world position
+      const stage = game.renderer?.app?.stage;
+      if (stage) {
+        stage.x = 0;
+      }
+
+      // Resize canvas to match new layout
+      const finishWidth = finishWidthRef.current;
+      const roadHeight = roadHeightRef.current;
+      const newTotalWidth = startWidth + newRoadWidth + finishWidth / 2;
+      const newTotalHeight = roadHeight; // Height doesn't change
+
+      game.resize(newTotalWidth, newTotalHeight);
+
+      // Force container to recalculate scroll bounds by triggering reflow
+      if (scrollContainerRef?.current) {
+        const container = scrollContainerRef.current;
+        // Reset scroll position to ensure proper bounds
+        container.scrollLeft = 0;
+        // Force reflow to recalculate scrollable area
+        void container.offsetWidth;
+      }
+
+      console.log(
+        `✅ Canvas resized to ${newTotalWidth}x${newTotalHeight} for ${newConfig.laneCount} lanes`,
+      );
+
+      console.log(
+        `✅ useGame: Difficulty updated. ${lanePositions.length} lane positions calculated`,
+      );
+    },
+    [scrollContainerRef],
+  );
+
+  // Reset game to initial state
+  const resetGame = useCallback(() => {
+    const game = gameRef.current;
+    const chicken = chickenRef.current;
+    if (!game || !chicken) return;
+
+    game.resetGame();
+
+    // Reset chicken to starting position
+    if (lanePositionsRef.current.length > 0) {
+      const startX = lanePositionsRef.current[0];
+      chicken.x = startX;
+      chicken.container.position.x = startX;
+      currentLaneRef.current = 0;
+      console.log("🐔 Chicken reset to starting position");
+    }
+  }, []);
+
   return {
     gameRef,
     entityManagerRef,
     chickenRef,
     isLoading,
     jumpChicken,
+    getCurrentMultiplier,
+    updateDifficulty,
+    resetGame,
   };
 }
