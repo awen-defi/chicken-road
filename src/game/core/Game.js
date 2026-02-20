@@ -60,6 +60,7 @@ export class Game {
 
   /**
    * Start the game loop - Pixi uses its own ticker
+   * NOTE: Game loop starts, but state remains "idle" until Play button clicked
    */
   start() {
     if (!this.initialized || !this.renderer.app) {
@@ -67,7 +68,9 @@ export class Game {
       return;
     }
 
-    this.state = "playing";
+    // CRITICAL: Start in "idle" state - wait for Play button
+    // Game loop will run but won't spawn cars or update systems until state = "playing"
+    this.state = "idle";
 
     // Use Pixi's built-in ticker for optimal performance
     this.renderer.app.ticker.add(this.gameLoop, this);
@@ -105,31 +108,31 @@ export class Game {
 
   /**
    * Main game loop - called by Pixi ticker
+   * CRITICAL: This must ALWAYS run to render the scene, regardless of game state
    */
   gameLoop(ticker) {
-    // Allow updates during gameover state for death animation
-    if (this.state !== "playing" && this.state !== "gameover") return;
-
     // Delta time in seconds (Pixi ticker provides delta in frames, convert to seconds)
     const deltaTime = ticker.deltaTime / 60; // 60 FPS baseline
 
+    // ALWAYS update entities for rendering (chicken, road, scenery must be visible in idle state)
     this.update(deltaTime);
     // Pixi handles rendering automatically, no need to call render()
   }
 
   /**
    * Update game logic
+   * CRITICAL: Entities must ALWAYS update for rendering, game systems only update when playing
    */
   update(deltaTime) {
-    // Allow entity updates during gameover for animation
-    if (this.state !== "playing" && this.state !== "gameover") return;
-
-    // Update all entities (for animations)
+    // ALWAYS update all entities for rendering (chicken, road, scenery visible in all states)
+    // This ensures the scene is rendered even in "idle" state
     if (this.entityManager) {
       this.entityManager.update(deltaTime);
     }
 
-    // Only update game systems if playing (not during death animation)
+    // Only update game systems when playing (car spawning, collision, coins, gates)
+    // During "idle": no cars spawn, no collision checks
+    // During "gameover": only entities update (for death animation)
     if (this.state === "playing") {
       // Update car spawner
       if (this.carSpawner) {
@@ -269,8 +272,9 @@ export class Game {
       return;
     }
 
-    // Reset game state
-    this.state = "playing";
+    // CRITICAL: Keep game in "idle" state - wait for Play button to start
+    // The Play button handler will set state to "playing"
+    this.state = "idle";
 
     // Reset coin manager
     if (this.coinManager) {

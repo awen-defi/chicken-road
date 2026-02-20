@@ -52,6 +52,12 @@ export default function App() {
       setGameState("playing");
       setScore(0);
 
+      // CRITICAL: Start the PixiJS game engine (enables car spawning & movement)
+      const game = window.__GAME_INSTANCE__;
+      if (game) {
+        game.state = "playing";
+      }
+
       // Automatically jump to first road line when game starts
       if (jumpChickenFn) {
         setTimeout(() => {
@@ -100,8 +106,6 @@ export default function App() {
   const handleCollision = useCallback(() => {
     if (gameState !== "playing") return;
 
-    console.log("💥 Collision detected - Setting gameState to 'lost'");
-
     // REQUIREMENT: Set state to "lost" to immediately lock user input
     setGameState("lost");
 
@@ -114,12 +118,9 @@ export default function App() {
 
   // Handle reset complete - restore game state after death sequence
   const handleResetComplete = useCallback(() => {
-    console.log(
-      "🔄 handleResetComplete called - Restoring gameState to 'playing'",
-    );
-    // REQUIREMENT: Re-enable input by setting gameState back to "playing"
-    setGameState("playing");
-    console.log("✅ UI state restored - Game ready for new play");
+    // CRITICAL: Set gameState to "idle" to show Play button
+    // User must click Play to start a new game
+    setGameState("idle");
   }, []);
 
   // Register collision callback when game is ready

@@ -160,6 +160,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         // Chicken with Spine animation
         const chickenX = startWidth - 160;
         const chickenY = roadHeight * 0.7 + 70;
+
         const chicken = new Chicken(chickenX, chickenY, {
           chickenSize: config.chickenSize,
           chickenScale: config.chickenScale || 0.5,
@@ -209,14 +210,18 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         // Get container element (parent of canvas)
         const containerElement = canvas.parentElement;
         if (game.carSpawner) {
-          game.carSpawner.initialize(
-            entityManager,
-            game.renderer,
-            road,
-            chicken,
-            containerElement,
-            game.gateManager, // Pass gate manager
-          );
+          try {
+            game.carSpawner.initialize(
+              entityManager,
+              game.renderer,
+              road,
+              chicken,
+              containerElement,
+              game.gateManager, // Pass gate manager
+            );
+          } catch (error) {
+            console.error("CarSpawner initialization failed:", error);
+          }
         }
 
         // Initialize coin manager with road and chicken
@@ -242,7 +247,10 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         // Set entity references in game for dynamic updates
         game.setEntityReferences(road, finishScenery);
 
-        // Start game loop
+        // Store game instance for React access (Play button control)
+        window.__GAME_INSTANCE__ = game;
+
+        // Start game loop (but state will be "idle" until Play button clicked)
         game.start();
 
         setIsLoading(false);
@@ -259,6 +267,11 @@ export function useGame(canvasRef, config, scrollContainerRef) {
     return () => {
       aborted = true;
       isInitializedRef.current = false;
+
+      // Clear global game instance reference
+      if (window.__GAME_INSTANCE__) {
+        window.__GAME_INSTANCE__ = null;
+      }
 
       if (game) {
         try {
@@ -550,12 +563,11 @@ export function useGame(canvasRef, config, scrollContainerRef) {
 
           // STEP 1: WIPE ALL CARS FIRST (including the one that caused collision)
           // This ensures the stage is completely clean before visual reset
-          console.log("🧹 Starting stage wipe...");
           if (game.carSpawner) {
             try {
               game.carSpawner.reset();
             } catch (error) {
-              console.error("❌ Error resetting car spawner:", error);
+              console.error("Error resetting car spawner:", error);
             }
           }
 
@@ -633,19 +645,15 @@ export function useGame(canvasRef, config, scrollContainerRef) {
             }
           }
 
-          // STEP 5: RE-ENABLE INPUT & RESTORE GAME STATE
-          // First, set internal game state to "playing"
-          game.state = "playing";
+          // STEP 5: RE-ENABLE INPUT & RESTORE GAME STATE TO IDLE
+          // CRITICAL: Set game to "idle" so it waits for Play button click
+          // This stops car spawning and movement until user starts new game
+          game.state = "idle";
 
-          console.log("✅ Reset complete - Restoring game state to 'playing'");
-
-          // Then, notify App.jsx to restore React gameState to "playing"
-          // This unblocks user input in handlePlay()
+          // Then, notify App.jsx to restore React gameState to "idle"
+          // This shows the Play button and allows user to start a new game
           if (onResetComplete) {
-            console.log("📢 Calling onResetComplete to restore UI state...");
             onResetComplete();
-          } else {
-            console.warn("⚠️ onResetComplete callback is undefined!");
           }
         });
       };

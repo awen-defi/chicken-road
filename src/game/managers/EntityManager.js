@@ -58,6 +58,9 @@ export class EntityManager {
   update(deltaTime) {
     // Process additions (batch operation)
     if (this.entitiesToAdd.length > 0) {
+      console.log(
+        `🎯 Adding ${this.entitiesToAdd.length} entities to stage...`,
+      );
       for (let i = 0; i < this.entitiesToAdd.length; i++) {
         const entity = this.entitiesToAdd[i];
         if (!entity) continue;
@@ -70,13 +73,35 @@ export class EntityManager {
           if (displayObject && !displayObject.destroyed) {
             try {
               this.stage.addChild(displayObject);
+              console.log(
+                `  ✅ Added ${entity.constructor.name} to stage at position (${entity.x}, ${entity.y})`,
+              );
             } catch (e) {
-              console.warn("Failed to add entity to stage:", e);
+              console.error(
+                `  ❌ Failed to add ${entity.constructor.name} to stage:`,
+                e,
+              );
             }
+          } else {
+            console.warn(
+              `  ⚠️ ${entity.constructor.name} has no valid display object`,
+            );
           }
+        } else {
+          if (!this.stage) console.error("  ❌ Stage is null!");
+          if (!entity.getDisplayObject)
+            console.warn(
+              `  ⚠️ ${entity.constructor.name} has no getDisplayObject method`,
+            );
         }
       }
       this.entitiesToAdd.length = 0; // Faster than = []
+      console.log(`🎯 Total entities in manager: ${this.entities.length}`);
+      if (this.stage) {
+        console.log(
+          `🎯 Total children on stage: ${this.stage.children.length}`,
+        );
+      }
     }
 
     // Update active entities

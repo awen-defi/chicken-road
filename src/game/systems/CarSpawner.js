@@ -1,5 +1,4 @@
 import { Car } from "../entities/Car.js";
-import { Graphics } from "pixi.js";
 
 /**
  * CarSpawner - Manages car spawning and object pooling
@@ -59,10 +58,6 @@ export class CarSpawner {
     // Track chicken's current lane for dynamic safe zone
     this.chickenLaneIndex = 0;
     this.initialSpawnComplete = false;
-
-    // Debug visualization
-    this.debugEnabled = true; // Toggle debug rendering
-    this.debugGraphics = null; // Graphics object for debug rendering
   }
 
   /**
@@ -82,13 +77,6 @@ export class CarSpawner {
     this.chicken = chicken; // Store chicken reference for smart spawning
     this.containerElement = containerElement; // For viewport detection
     this.gateManager = gateManager; // Store gate manager reference for car blocking
-
-    // Initialize debug graphics
-    if (this.debugEnabled && this.entityManager && this.entityManager.stage) {
-      this.debugGraphics = new Graphics();
-      this.debugGraphics.zIndex = 10000; // Render on top of everything
-      this.entityManager.stage.addChild(this.debugGraphics);
-    }
 
     // Calculate lane positions and road boundaries
     this.startX = road.x;
@@ -407,11 +395,6 @@ export class CarSpawner {
       return;
     }
 
-    // Clear debug graphics from previous frame
-    if (this.debugGraphics) {
-      this.debugGraphics.clear();
-    }
-
     // Initial spawn: spawn cars on all lanes at the start of the game
     if (!this.initialSpawnComplete && this.lanes.length > 0) {
       for (let i = 0; i < this.lanes.length; i++) {
@@ -559,89 +542,14 @@ export class CarSpawner {
 
     // Collision occurs only if ALL conditions are met
     if (overlapsX && verticalAlignment && depthAlignment) {
-      console.log("💥 COLLISION DETECTED!");
-
       // REQUIREMENT: Set collision flag to prevent multiple triggers
-      // NOTE: The car that caused collision continues moving (not stopped)
+      // CRITICAL: The car that caused collision continues moving (not stopped)
+      // Car momentum is maintained - car.update() continues to be called
       this.hasCollided = true;
 
       if (this.onCollision) {
         this.onCollision();
       }
-    }
-
-    // Draw debug visualization
-    if (this.debugEnabled) {
-      this.drawDebugBounds(
-        carWorldBounds,
-        chickenWorldBounds,
-        overlapsX && verticalAlignment && depthAlignment,
-      );
-    }
-  }
-
-  /**
-   * Draw debug visualization boxes around car and chicken
-   * RED box = Car collision area
-   * GREEN box = Chicken hitbox
-   * YELLOW box = Collision detected
-   */
-  drawDebugBounds(carBounds, chickenBounds, isColliding) {
-    if (!this.debugGraphics) return;
-
-    // Clear previous frame's debug graphics
-    this.debugGraphics.clear();
-
-    // Draw car collision area (RED when no collision, YELLOW when colliding)
-    // PixiJS v8: Updated from lineStyle() to setStrokeStyle() and drawRect() to rect()
-    this.debugGraphics.setStrokeStyle({
-      width: 3,
-      color: isColliding ? 0xffff00 : 0xff0000,
-    });
-    this.debugGraphics.rect(
-      carBounds.x,
-      carBounds.y,
-      carBounds.width,
-      carBounds.height,
-    );
-    this.debugGraphics.stroke();
-
-    // Draw chicken hitbox (GREEN)
-    this.debugGraphics.setStrokeStyle({ width: 3, color: 0x00ff00 });
-    this.debugGraphics.rect(
-      chickenBounds.x,
-      chickenBounds.y,
-      chickenBounds.width,
-      chickenBounds.height,
-    );
-    this.debugGraphics.stroke();
-
-    // Mark collision point if detected
-    if (isColliding) {
-      // Draw X at center of overlap
-      const overlapCenterX =
-        (Math.max(carBounds.x, chickenBounds.x) +
-          Math.min(
-            carBounds.x + carBounds.width,
-            chickenBounds.x + chickenBounds.width,
-          )) /
-        2;
-      const overlapCenterY =
-        (Math.max(carBounds.y, chickenBounds.y) +
-          Math.min(
-            carBounds.y + carBounds.height,
-            chickenBounds.y + chickenBounds.height,
-          )) /
-        2;
-
-      // Draw X mark at collision point (PixiJS v8 updated API)
-      this.debugGraphics.setStrokeStyle({ width: 5, color: 0xff00ff });
-      this.debugGraphics.moveTo(overlapCenterX - 20, overlapCenterY - 20);
-      this.debugGraphics.lineTo(overlapCenterX + 20, overlapCenterY + 20);
-      this.debugGraphics.stroke();
-      this.debugGraphics.moveTo(overlapCenterX + 20, overlapCenterY - 20);
-      this.debugGraphics.lineTo(overlapCenterX - 20, overlapCenterY + 20);
-      this.debugGraphics.stroke();
     }
   }
 
@@ -670,15 +578,11 @@ export class CarSpawner {
    * CRITICAL: This must completely clear the stage before chicken resets
    */
   reset() {
-    console.log("🔄 CarSpawner.reset() - Starting aggressive stage wipe");
-    console.log(`   Active cars before wipe: ${this.activeCars.length}`);
-
     // STEP 1: Stop collision checking IMMEDIATELY
     this.hasCollided = false;
 
     // STEP 2: AGGRESSIVE STAGE CLEANUP - Force removal of ALL cars
     const stage = this.entityManager?.stage;
-    let removedCount = 0;
 
     // Clone array to avoid modification during iteration
     const carsToRemove = [...this.activeCars];
@@ -698,7 +602,6 @@ export class CarSpawner {
         if (stage && car.container.parent === stage) {
           try {
             stage.removeChild(car.container);
-            removedCount++;
           } catch (e) {
             console.warn("Failed to remove car from stage:", e);
           }
@@ -712,9 +615,6 @@ export class CarSpawner {
     // Clear the activeCars array completely
     this.activeCars.length = 0;
 
-    console.log(`   ✅ Removed ${removedCount} cars from stage`);
-    console.log(`   ✅ Active cars after wipe: ${this.activeCars.length}`);
-
     // STEP 3: Clear timers to prevent immediate spawn
     this.spawnTimer = 0;
     this.nextSpawnTime = this.getRandomSpawnInterval();
@@ -724,15 +624,6 @@ export class CarSpawner {
 
     // STEP 5: Clear lane cooldowns
     this.laneCooldowns.clear();
-
-    // STEP 6: Clear debug graphics
-    if (this.debugGraphics) {
-      this.debugGraphics.clear();
-    }
-
-    console.log(
-      "✅ CarSpawner.reset() - Stage wipe COMPLETE, ready for new game",
-    );
   }
 
   /**
@@ -758,11 +649,5 @@ export class CarSpawner {
       }
     }
     this.carPool = [];
-
-    // Cleanup debug graphics
-    if (this.debugGraphics) {
-      this.debugGraphics.destroy();
-      this.debugGraphics = null;
-    }
   }
 }
