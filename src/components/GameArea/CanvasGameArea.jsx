@@ -11,6 +11,7 @@ export function CanvasGameArea({
   onJumpReady,
   scrollContainerRef,
   difficulty,
+  onLoadingChange,
 }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
@@ -58,6 +59,7 @@ export function CanvasGameArea({
 
   const {
     isLoading,
+    loadingError,
     jumpChicken,
     getCurrentMultiplier,
     finishCurrentLane,
@@ -100,13 +102,15 @@ export function CanvasGameArea({
     onJumpReady,
   ]);
 
+  // Notify parent of loading state changes
+  useEffect(() => {
+    if (onLoadingChange) {
+      onLoadingChange({ isLoading, loadingError });
+    }
+  }, [isLoading, loadingError, onLoadingChange]);
+
   return (
     <div ref={containerRef} className="canvas-game-container">
-      {isLoading && (
-        <div className="game-loading">
-          <p>Loading game assets...</p>
-        </div>
-      )}
       <canvas ref={canvasRef} className="game-canvas" />
     </div>
   );

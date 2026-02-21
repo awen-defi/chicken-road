@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import "./App.css";
-import { Header, GameArea, ControlPanel } from "./components";
+import { Header, GameArea, ControlPanel, LoadingScreen } from "./components";
 
 /**
  * Helper function to round currency to 2 decimal places
@@ -23,6 +23,16 @@ export default function App() {
   const [registerCollisionCallbackFn, setRegisterCollisionCallbackFn] =
     useState(null);
   const scrollContainerRef = useRef(null);
+
+  // Loading state management
+  const [isGameLoading, setIsGameLoading] = useState(true);
+  const [loadingError, setLoadingError] = useState(null);
+
+  // Handle loading state from GameArea
+  const handleLoadingChange = useCallback(({ isLoading, loadingError }) => {
+    setIsGameLoading(isLoading);
+    setLoadingError(loadingError || null);
+  }, []);
 
   // Handle when jump function is ready from game
   const handleJumpReady = useCallback(
@@ -239,11 +249,19 @@ export default function App() {
 
   return (
     <div className="app-container">
+      <LoadingScreen isLoading={isGameLoading} />
+      {loadingError && (
+        <div className="loading-error">
+          <p>Error: {loadingError}</p>
+          <button onClick={() => window.location.reload()}>Reload Page</button>
+        </div>
+      )}
       <Header balance={balance} />
       <GameArea
         onJumpReady={handleJumpReady}
         scrollContainerRef={scrollContainerRef}
         difficulty={difficulty}
+        onLoadingChange={handleLoadingChange}
       />
       <ControlPanel
         betAmount={betAmount}

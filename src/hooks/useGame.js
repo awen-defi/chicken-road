@@ -31,6 +31,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
   const canvasWidthRef = useRef(0); // Store total canvas width for clamping
 
   const [isLoading, setIsLoading] = useState(true);
+  const [loadingError, setLoadingError] = useState(null);
 
   useEffect(() => {
     if (!canvasRef.current || isInitializedRef.current) return;
@@ -38,12 +39,18 @@ export function useGame(canvasRef, config, scrollContainerRef) {
     const canvas = canvasRef.current;
     let game = null;
     let aborted = false;
+    let loadingTimeout = null;
 
     const initializeGame = async () => {
       try {
         // Prevent double initialization
         if (isInitializedRef.current) return;
         isInitializedRef.current = true;
+
+        // DOM Verification: Ensure canvas is attached to DOM
+        if (!canvas.parentElement) {
+          throw new Error("Canvas not attached to DOM");
+        }
 
         // Create managers
         const entityManager = new EntityManager();
@@ -63,32 +70,53 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           return;
         }
 
-        // Load assets using Pixi's asset system
-        const textures = await game.renderer.loadTextures([
-          { key: "start", url: "/start.png" },
-          { key: "finish", url: "/finish.png" },
-          // Gate image
-          { key: "gate", url: "/gate.png" },
-          // Coin images
-          { key: "coin", url: "/coin.png" },
-          { key: "coin-gold", url: "/coin-gold.png" },
-          // Chicken tooltip
-          { key: "chicken-tooltip", url: "/chicken-tooltip.png" },
-          // Win notification
-          { key: "win-notification", url: "/winNotification.png" },
-          // Car images
-          { key: "truck-orange", url: "/truck-orange.png" },
-          { key: "truck-blue", url: "/truck-blue.png" },
-          { key: "car-yellow", url: "/car-yellow.png" },
-          { key: "car-police", url: "/car-police.png" },
-        ]);
+        // Set loading timeout (30 seconds max)
+        loadingTimeout = setTimeout(() => {
+          if (isInitializedRef.current && isLoading) {
+            setLoadingError("Loading timeout - please refresh the page");
+            setIsLoading(false);
+          }
+        }, 30000);
 
-        // Load Spine animation for chicken
-        const chickenKeys = await game.renderer.loadSpineAnimation(
-          "chicken",
-          "/chicken.json",
-          "/chicken.atlas",
-        );
+        // Load assets using Pixi's asset system with error handling
+        let textures;
+        try {
+          textures = await game.renderer.loadTextures([
+            { key: "start", url: "/start.png" },
+            { key: "finish", url: "/finish.png" },
+            // Gate image
+            { key: "gate", url: "/gate.png" },
+            // Coin images
+            { key: "coin", url: "/coin.png" },
+            { key: "coin-gold", url: "/coin-gold.png" },
+            // Chicken tooltip
+            { key: "chicken-tooltip", url: "/chicken-tooltip.png" },
+            // Win notification
+            { key: "win-notification", url: "/winNotification.png" },
+            // Car images
+            { key: "truck-orange", url: "/truck-orange.png" },
+            { key: "truck-blue", url: "/truck-blue.png" },
+            { key: "car-yellow", url: "/car-yellow.png" },
+            { key: "car-police", url: "/car-police.png" },
+          ]);
+        } catch (error) {
+          console.error("Failed to load textures:", error);
+          // Continue with partial loading - game will use placeholders
+          textures = {};
+        }
+
+        // Load Spine animation for chicken with error handling
+        let chickenKeys;
+        try {
+          chickenKeys = await game.renderer.loadSpineAnimation(
+            "chicken",
+            "/chicken.json",
+            "/chicken.atlas",
+          );
+        } catch (error) {
+          console.error("Failed to load chicken animation:", error);
+          throw new Error("Critical asset loading failed");
+        }
 
         // Check if cleanup happened during async loading
         if (aborted || !game || !game.renderer) {
@@ -101,9 +129,13 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           game.initializeWinDisplay();
         }
 
-        // Get loaded textures
-        const startTexture = textures.start;
-        const finishTexture = textures.finish;
+        // Get loaded textures with fallbacks
+        const startTexture = textures.start || textures["start"];
+        const finishTexture = textures.finish || textures["finish"];
+
+        if (!startTexture || !finishTexture) {
+          throw new Error("Critical textures failed to load");
+        }
 
         // Scaling factor for all elements
         const sceneryScale = 1.1; // Increased by 1.2x from previous 0.84 (0.84 * 1.2)
@@ -280,11 +312,36 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         // Start game loop (but state will be "idle" until Play button clicked)
         game.start();
 
-        setIsLoading(false);
+        // Wait for first frame to render (ensures canvas is fully initialized)
+        await new Promise((resolve) => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(resolve);
+          });
+        });
+
+        // Clear timeout
+        if (loadingTimeout) {
+          clearTimeout(loadingTimeout);
+          loadingTimeout = null;
+        }
+
+        // Small delay before hiding loader for smooth transition
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 300);
       } catch (error) {
         console.error("Failed to initialize game:", error);
+        setLoadingError(error.message || "Failed to initialize game");
         isInitializedRef.current = false;
-        setIsLoading(false);
+
+        if (loadingTimeout) {
+          clearTimeout(loadingTimeout);
+        }
+
+        // Still hide loader after error to show error message
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 1000);
       }
     };
 
@@ -294,6 +351,11 @@ export function useGame(canvasRef, config, scrollContainerRef) {
     return () => {
       aborted = true;
       isInitializedRef.current = false;
+
+      // Clear timeout
+      if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+      }
 
       // Clear global game instance reference
       if (window.__GAME_INSTANCE__) {
@@ -730,6 +792,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
     entityManagerRef,
     chickenRef,
     isLoading,
+    loadingError,
     jumpChicken,
     getCurrentMultiplier,
     finishCurrentLane,
