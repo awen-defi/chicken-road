@@ -19,16 +19,27 @@ export class CarSpawner {
     this.activeCars = [];
     this.poolSize = 30;
 
-    // Spawn timing
+    // Difficulty-based spawn timing (defaults to Easy)
+    this.currentDifficulty = "Easy";
+    this.baseMinSpeed = 200; // Base speed (px/s)
+    this.baseMaxSpeed = 450; // Base speed (px/s)
+    this.speedMultiplier = 1.0;
+    this.minSpeed = this.baseMinSpeed * this.speedMultiplier;
+    this.maxSpeed = this.baseMaxSpeed * this.speedMultiplier;
+
+    // Spawn timing in seconds (converted from ms)
     this.spawnTimer = 0;
-    this.minSpawnInterval = 0.15; // Halved to compensate for 2x speed (0.3 / 2)
-    this.maxSpawnInterval = 0.6; // Halved to compensate for 2x speed (1.2 / 2)
+    this.minSpawnInterval = 2.5; // 2500ms in seconds
+    this.maxSpawnInterval = 4.5; // 4500ms in seconds
     this.nextSpawnTime = this.getRandomSpawnInterval();
 
     // Lane configuration
     this.lanes = [];
     this.laneCooldowns = new Map();
+    this.laneLastSpawnTime = new Map(); // Track last spawn time per lane
     this.cooldownDuration = 3.0;
+    this.carHeight = 98; // Average car height for collision prevention
+    this.safetyMargin = 150; // Safety buffer in pixels
     this.startX = 0;
     this.roadWidth = 0;
     this.roadY = 0;
@@ -42,10 +53,6 @@ export class CarSpawner {
       { type: "car-yellow", weight: 0.2, imageKey: "car-yellow" },
       { type: "car-police", weight: 0.2, imageKey: "car-police" },
     ];
-
-    // Speed variation
-    this.minSpeed = 400; // Increased by 2.0x (200 * 2)
-    this.maxSpeed = 900; // Increased by 2.0x (450 * 2)
 
     // Cleanup optimization
     this.cleanupFrameCounter = 0;
@@ -187,6 +194,31 @@ export class CarSpawner {
   }
 
   /**
+   * Update difficulty settings (called when difficulty changes)
+   */
+  updateDifficulty(difficulty, difficultySettings) {
+    if (!difficultySettings || !difficultySettings.carSpawn) {
+      console.warn("Invalid difficulty settings for car spawner");
+      return;
+    }
+
+    this.currentDifficulty = difficulty;
+    const carSpawn = difficultySettings.carSpawn;
+
+    // Update speed multiplier
+    this.speedMultiplier = carSpawn.speedMultiplier;
+    this.minSpeed = this.baseMinSpeed * this.speedMultiplier;
+    this.maxSpeed = this.baseMaxSpeed * this.speedMultiplier;
+
+    // Update spawn intervals (convert from ms to seconds)
+    this.minSpawnInterval = carSpawn.minSpawnDelay / 1000;
+    this.maxSpawnInterval = carSpawn.maxSpawnDelay / 1000;
+
+    // Reset spawn timer to apply new settings immediately
+    this.nextSpawnTime = this.getRandomSpawnInterval();
+  }
+
+  /**
    * Get random spawn interval
    */
   getRandomSpawnInterval() {
@@ -194,6 +226,15 @@ export class CarSpawner {
       this.minSpawnInterval +
       Math.random() * (this.maxSpawnInterval - this.minSpawnInterval)
     );
+  }
+
+  /**
+   * Calculate minimum gap required to prevent collisions on same lane
+   * Formula: (CarHeight / CurrentSpeed) + SafetyMargin
+   */
+  calculateMinimumGap(speed) {
+    const timeToPass = this.carHeight / speed; // Time for car to move past its own length
+    return timeToPass + this.safetyMargin / speed; // Add safety margin time
   }
 
   /**
@@ -317,6 +358,19 @@ export class CarSpawner {
       return; // Don't spawn this time
     }
 
+    // Random speed with wider variation
+    const speed =
+      this.minSpeed + Math.random() * (this.maxSpeed - this.minSpeed);
+
+    // Collision prevention: Check minimum gap based on speed
+    const currentTime = performance.now() / 1000; // Convert to seconds
+    const lastSpawnTime = this.laneLastSpawnTime.get(laneIndex) || 0;
+    const minBuffer = this.calculateMinimumGap(speed);
+
+    if (currentTime - lastSpawnTime < minBuffer) {
+      return; // Too soon, would cause collision
+    }
+
     // Get car from pool
     const car = this.acquireCar();
 
@@ -336,17 +390,13 @@ export class CarSpawner {
       return;
     }
 
-    // Random speed with wider variation
-    const speed =
-      this.minSpeed + Math.random() * (this.maxSpeed - this.minSpeed);
-
     // Spawn position: X at lane center, Y at top of canvas
     const spawnX = lane.centerX;
 
     // Spawn at the top of the visible canvas area (Y=0 or slightly above)
     // This ensures cars are visible as they enter the screen
     // regardless of where the road container is positioned
-    const spawnY = -100; // Spawn 100px above canvas top for smooth entry
+    const spawnY = this.roadY - 100; // Spawn 100px above road top for smooth entry
 
     // Get gate for this lane (if any)
     const laneGate = this.gateManager
@@ -367,6 +417,9 @@ export class CarSpawner {
     // Set cooldown for this lane
     this.setLaneCooldown(lane.index);
 
+    // Track spawn time for collision prevention
+    this.laneLastSpawnTime.set(laneIndex, currentTime);
+
     // Add to active cars
     this.activeCars.push(car);
 
@@ -376,13 +429,6 @@ export class CarSpawner {
         // Set car z-index higher than coins (coins are at 100)
         car.container.zIndex = 150;
         this.entityManager.stage.addChild(car.container);
-
-        // Debug: Log spawning on lanes beyond lane 5
-        if (laneIndex > 5) {
-          console.log(
-            `🚗 Spawned car on lane ${laneIndex} at X=${Math.round(spawnX)}, Y=${Math.round(spawnY)} (roadY=${Math.round(this.roadY)})`,
-          );
-        }
       } catch (e) {
         console.warn("Failed to add car to stage:", e);
       }
@@ -458,13 +504,6 @@ export class CarSpawner {
           } else if (
             !car.isInViewport(scrollX, scrollY, viewportWidth, viewportHeight)
           ) {
-            // Debug: Log cleanup of cars on higher lanes
-            if (car.lane > 7) {
-              const worldBounds = car.container?.getBounds();
-              console.log(
-                `🗑️ Cleaning up car on lane ${car.lane}: carY=${Math.round(car.y)}, worldBoundsY=${worldBounds ? Math.round(worldBounds.y) : "N/A"}, scrollY=${scrollY}, viewportHeight=${viewportHeight}`,
-              );
-            }
             this.releaseCar(car);
           }
         }

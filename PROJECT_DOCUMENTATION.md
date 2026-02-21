@@ -981,8 +981,6 @@ window.__GAME_INSTANCE__ = gameRef.current;
 
 // Access from anywhere
 const game = window.__GAME_INSTANCE__;
-console.log(game.state);
-console.log(game.coinManager.currentLaneIndex);
 ```
 
 ⚠️ **Warning**: Use for debugging only, not production code
@@ -1312,12 +1310,6 @@ this.carPool.push(car);
 ```javascript
 // Access game instance from browser console
 const game = window.__GAME_INSTANCE__;
-
-// Inspect current state
-console.log("Game State:", game.state);
-console.log("Current Lane:", game.coinManager.currentLaneIndex);
-console.log("Active Cars:", game.carSpawner.activeCars.length);
-console.log("Multiplier:", game.coinManager.getCurrentMultiplier());
 
 // Force state changes (testing)
 game.state = "playing";

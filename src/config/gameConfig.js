@@ -51,7 +51,7 @@ export const GAME_CONFIG = {
 };
 
 /**
- * Difficulty settings for game modes with coin multipliers
+ * Difficulty settings for game modes with coin multipliers and car spawn configuration
  */
 export const DIFFICULTY_SETTINGS = {
   Easy: {
@@ -63,6 +63,12 @@ export const DIFFICULTY_SETTINGS = {
       1.65, 1.75, 1.85, 1.98, 2.12, 2.28, 2.47, 2.7, 2.96, 3.28, 3.7, 4.11,
       4.64, 5.39, 6.5, 8.36, 12.08, 23.24,
     ],
+    // Car spawn settings
+    carSpawn: {
+      speedMultiplier: 1.0,
+      minSpawnDelay: 700, // ms
+      maxSpawnDelay: 1200, // ms
+    },
   },
   Medium: {
     obstacleSpawnChance: 0.5,
@@ -73,6 +79,12 @@ export const DIFFICULTY_SETTINGS = {
       6.91, 8.64, 10.99, 14.29, 18.96, 26.07, 37.24, 52.82, 82.36, 137.59,
       265.55, 638.82, 2457.0,
     ],
+    // Car spawn settings
+    carSpawn: {
+      speedMultiplier: 1.5,
+      minSpawnDelay: 500, // ms
+      maxSpawnDelay: 1000, // ms
+    },
   },
   Hard: {
     obstacleSpawnChance: 0.7,
@@ -83,6 +95,12 @@ export const DIFFICULTY_SETTINGS = {
       38.71, 60.21, 97.34, 166.87, 305.94, 595.86, 1383.03, 3267.64, 10898.54,
       62162.09,
     ],
+    // Car spawn settings
+    carSpawn: {
+      speedMultiplier: 2,
+      minSpawnDelay: 400, // ms
+      maxSpawnDelay: 800, // ms
+    },
   },
   Hardcore: {
     obstacleSpawnChance: 0.9,
@@ -92,6 +110,12 @@ export const DIFFICULTY_SETTINGS = {
       1.44, 2.21, 3.45, 5.53, 9.09, 15.3, 26.78, 48.7, 92.54, 185.08, 391.25,
       894.28, 2235.72, 6096.15, 18960.33, 72432.75, 379632.82, 3608855.25,
     ],
+    // Car spawn settings
+    carSpawn: {
+      speedMultiplier: 2.5,
+      minSpawnDelay: 300, // ms
+      maxSpawnDelay: 600, // ms
+    },
   },
 };
 

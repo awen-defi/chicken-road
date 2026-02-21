@@ -5,6 +5,7 @@ import { InputSystem } from "../game/systems/InputSystem.js";
 import { Chicken } from "../game/entities/Chicken.js";
 import { Road } from "../game/entities/Road.js";
 import { Scenery } from "../game/entities/Scenery.js";
+import { DIFFICULTY_SETTINGS } from "../config/gameConfig.js";
 
 /**
  * useGame - Custom hook to manage game instance lifecycle with Pixi.js
@@ -277,6 +278,17 @@ export function useGame(canvasRef, config, scrollContainerRef) {
               chicken,
               containerElement,
               game.gateManager, // Pass gate manager
+            );
+
+            // Set initial difficulty settings for car spawner
+            // Default to "Easy" if config doesn't specify difficulty
+            const initialDifficulty = config.difficulty || "Easy";
+            const difficultySettings =
+              DIFFICULTY_SETTINGS[initialDifficulty] ||
+              DIFFICULTY_SETTINGS.Easy;
+            game.carSpawner.updateDifficulty(
+              initialDifficulty,
+              difficultySettings,
             );
           } catch (error) {
             console.error("CarSpawner initialization failed:", error);

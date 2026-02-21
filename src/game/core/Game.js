@@ -2,6 +2,7 @@ import { PixiRenderer } from "./PixiRenderer.js";
 import { CarSpawner } from "../systems/CarSpawner.js";
 import { CoinManager } from "../managers/CoinManager.js";
 import { GateManager } from "../managers/GateManager.js";
+import { DIFFICULTY_SETTINGS } from "../../config/gameConfig.js";
 import * as PIXI from "pixi.js";
 
 /**
@@ -477,9 +478,14 @@ export class Game {
         this.finishScenery.x = startWidth + newRoadWidth;
       }
 
-      // 3. Update car spawner lanes
+      // 3. Update car spawner lanes and difficulty settings
       if (this.carSpawner && this.road) {
         this.carSpawner.updateLaneCount(this.road);
+
+        // Get difficulty settings and update car spawner
+        const difficultySettings =
+          DIFFICULTY_SETTINGS[newDifficulty] || DIFFICULTY_SETTINGS.Easy;
+        this.carSpawner.updateDifficulty(newDifficulty, difficultySettings);
       }
 
       // 4. Clear and reset gate manager
