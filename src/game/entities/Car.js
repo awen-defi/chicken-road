@@ -83,6 +83,14 @@ export class Car extends BaseEntity {
     if (this.container) {
       this.container.position.set(x, y);
       this.container.visible = true;
+      this.container.renderable = true; // Ensure PixiJS doesn't cull it
+      this.container.cullable = false; // Disable automatic culling
+
+      // CRITICAL: Ensure container bounds are not cached (they update as car moves)
+      this.container.cacheAsBitmap = false;
+
+      // Set explicit bounds to prevent clipping (use very large bounds)
+      this.container.filterArea = null; // No filter area restriction
     }
   }
 
@@ -126,6 +134,20 @@ export class Car extends BaseEntity {
 
     // Move car downward along the lane
     this.y += this.speed * deltaTime;
+
+    // Debug: Log position of cars on higher lanes every 60 frames (~1 second)
+    if (this.lane > 7 && Math.random() < 0.016) {
+      // ~1/60 chance per frame
+      const worldBounds = this.container?.getBounds();
+      console.log(
+        `🚗 Car lane ${this.lane}: localY=${Math.round(this.y)}, worldY=${worldBounds ? Math.round(worldBounds.y) : "N/A"}, speed=${this.speed}, active=${this.active}`,
+      );
+    }
+
+    // Check if car has moved off the bottom of the screen
+    if (this.y > this.roadBottomY + 200) {
+      this.isOffscreen = true;
+    }
   }
 
   /**
@@ -160,17 +182,25 @@ export class Car extends BaseEntity {
    * Check if car is visible in viewport (for optimized cleanup)
    */
   isInViewport(scrollX, scrollY, viewportWidth, viewportHeight) {
-    const bounds = this.getBounds();
+    // Use World Space bounds for accurate viewport detection
+    // Cars should only be cleaned up when they're truly offscreen
+    const worldBounds = this.container
+      ? this.container.getBounds()
+      : this.getBounds();
 
-    // Add buffer zone to keep cars slightly outside viewport
-    const buffer = 300;
+    // Large buffer to prevent premature cleanup (especially important for horizontal scrolling)
+    const buffer = 1000;
 
-    return (
-      bounds.x + bounds.width > scrollX - buffer &&
-      bounds.x < scrollX + viewportWidth + buffer &&
-      bounds.y + bounds.height > scrollY - buffer &&
-      bounds.y < scrollY + viewportHeight + buffer
-    );
+    // Check if car is within extended viewport bounds
+    const inViewportX =
+      worldBounds.x + worldBounds.width > scrollX - buffer &&
+      worldBounds.x < scrollX + viewportWidth + buffer;
+
+    const inViewportY =
+      worldBounds.y + worldBounds.height > scrollY - buffer &&
+      worldBounds.y < scrollY + viewportHeight + buffer;
+
+    return inViewportX && inViewportY;
   }
 
   /**

@@ -21,6 +21,13 @@ export class EntityManager {
     // Enable sortable children for z-index support
     if (this.stage) {
       this.stage.sortableChildren = true;
+
+      // CRITICAL: Disable culling on stage to prevent car flickering
+      this.stage.cullable = false;
+
+      console.log(
+        "🎯 EntityManager stage configured: sortable=true, cullable=false",
+      );
     }
   }
 

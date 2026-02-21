@@ -49,6 +49,13 @@ export class PixiRenderer {
 
     this.stage = this.app.stage;
     this.initialized = true;
+
+    // CRITICAL FIX: Disable stage culling to prevent cars from disappearing
+    // PixiJS may automatically cull objects it thinks are off-screen
+    if (this.stage) {
+      this.stage.cullable = false;
+      console.log("🔧 Stage culling disabled to prevent car flickering");
+    }
   }
 
   /**

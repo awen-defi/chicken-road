@@ -86,6 +86,10 @@ export class CarSpawner {
     this.laneWidth = road.laneWidth;
     this.setupLanes();
 
+    console.log(
+      `🎬 CarSpawner initialized - roadY: ${this.roadY}, roadHeight: ${this.roadHeight}, roadBottomY: ${this.roadY + this.roadHeight}`,
+    );
+
     // Pre-populate object pool
     this.initializePool();
   }
@@ -105,6 +109,10 @@ export class CarSpawner {
         spawnChance: 0.4 + Math.random() * 0.3, // Vary traffic density per lane
       });
     }
+
+    console.log(
+      `🛣️ Setup ${laneCount} lanes for car spawning (startX: ${this.startX}, laneWidth: ${laneWidth})`,
+    );
   }
 
   /**
@@ -256,10 +264,20 @@ export class CarSpawner {
 
     // Calculate chicken's current lane index
     const chickenLaneX = this.chicken.x - this.startX;
-    this.chickenLaneIndex = Math.max(
+    const newChickenLaneIndex = Math.max(
       0,
       Math.floor(chickenLaneX / this.laneWidth),
     );
+
+    // Debug when chicken advances to a new lane
+    if (newChickenLaneIndex !== this.chickenLaneIndex) {
+      console.log(
+        `🐔 Chicken advanced to lane ${newChickenLaneIndex} (was ${this.chickenLaneIndex})`,
+      );
+      this.chickenLaneIndex = newChickenLaneIndex;
+    } else {
+      this.chickenLaneIndex = newChickenLaneIndex;
+    }
 
     const validLanes = [];
 
@@ -343,15 +361,13 @@ export class CarSpawner {
     const speed =
       this.minSpeed + Math.random() * (this.maxSpeed - this.minSpeed);
 
-    // Spawn position: at the top of viewport or slightly above
+    // Spawn position: X at lane center, Y at top of canvas
     const spawnX = lane.centerX;
 
-    // Get current scroll position for viewport-aware spawning
-    let spawnY = this.roadY - 150; // Default spawn above road
-    if (this.containerElement) {
-      const scrollY = this.containerElement.scrollTop || 0;
-      spawnY = scrollY - 200; // Spawn above current viewport
-    }
+    // Spawn at the top of the visible canvas area (Y=0 or slightly above)
+    // This ensures cars are visible as they enter the screen
+    // regardless of where the road container is positioned
+    const spawnY = -100; // Spawn 100px above canvas top for smooth entry
 
     // Get gate for this lane (if any)
     const laneGate = this.gateManager
@@ -381,6 +397,13 @@ export class CarSpawner {
         // Set car z-index higher than coins (coins are at 100)
         car.container.zIndex = 150;
         this.entityManager.stage.addChild(car.container);
+
+        // Debug: Log spawning on lanes beyond lane 5
+        if (laneIndex > 5) {
+          console.log(
+            `🚗 Spawned car on lane ${laneIndex} at X=${Math.round(spawnX)}, Y=${Math.round(spawnY)} (roadY=${Math.round(this.roadY)})`,
+          );
+        }
       } catch (e) {
         console.warn("Failed to add car to stage:", e);
       }
@@ -451,10 +474,18 @@ export class CarSpawner {
         for (let i = this.activeCars.length - 1; i >= 0; i--) {
           const car = this.activeCars[i];
 
-          if (
-            !car.active ||
+          if (!car.active) {
+            this.releaseCar(car);
+          } else if (
             !car.isInViewport(scrollX, scrollY, viewportWidth, viewportHeight)
           ) {
+            // Debug: Log cleanup of cars on higher lanes
+            if (car.lane > 7) {
+              const worldBounds = car.container?.getBounds();
+              console.log(
+                `🗑️ Cleaning up car on lane ${car.lane}: carY=${Math.round(car.y)}, worldBoundsY=${worldBounds ? Math.round(worldBounds.y) : "N/A"}, scrollY=${scrollY}, viewportHeight=${viewportHeight}`,
+              );
+            }
             this.releaseCar(car);
           }
         }
