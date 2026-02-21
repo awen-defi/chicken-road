@@ -26,17 +26,17 @@ export const GAME_CONFIG = {
   assets: {
     start: "/start.png",
     finish: "/finish.png",
-    chicken: "/assets/chicken.png",
+    chicken: "/chicken.png",
     gate: "/gate.png",
     // Coin assets
     coin: "/coin.png",
     "coin-gold": "/coin-gold.png",
     // Car assets
     cars: {
-      "truck-orange": "/assets/truck-orange.png",
-      "truck-blue": "/assets/truck-blue.png",
-      "car-yellow": "/assets/car-yellow.png",
-      "car-police": "/assets/car-police.png",
+      "truck-orange": "/truck-orange.png",
+      "truck-blue": "/truck-blue.png",
+      "car-yellow": "/car-yellow.png",
+      "car-police": "/car-police.png",
     },
   },
 

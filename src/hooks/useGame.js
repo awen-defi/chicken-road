@@ -75,17 +75,17 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           // Chicken tooltip
           { key: "chicken-tooltip", url: "/chicken-tooltip.png" },
           // Car images
-          { key: "truck-orange", url: "/assets/truck-orange.png" },
-          { key: "truck-blue", url: "/assets/truck-blue.png" },
-          { key: "car-yellow", url: "/assets/car-yellow.png" },
-          { key: "car-police", url: "/assets/car-police.png" },
+          { key: "truck-orange", url: "/truck-orange.png" },
+          { key: "truck-blue", url: "/truck-blue.png" },
+          { key: "car-yellow", url: "/car-yellow.png" },
+          { key: "car-police", url: "/car-police.png" },
         ]);
 
         // Load Spine animation for chicken
         const chickenKeys = await game.renderer.loadSpineAnimation(
           "chicken",
-          "/assets/chicken.json",
-          "/assets/chiken.atlas",
+          "/chicken.json",
+          "/chicken.atlas",
         );
 
         // Check if cleanup happened during async loading
