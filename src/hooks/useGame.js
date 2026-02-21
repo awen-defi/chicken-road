@@ -74,6 +74,8 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           { key: "coin-gold", url: "/coin-gold.png" },
           // Chicken tooltip
           { key: "chicken-tooltip", url: "/chicken-tooltip.png" },
+          // Win notification
+          { key: "win-notification", url: "/winNotification.png" },
           // Car images
           { key: "truck-orange", url: "/truck-orange.png" },
           { key: "truck-blue", url: "/truck-blue.png" },
@@ -91,6 +93,12 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         // Check if cleanup happened during async loading
         if (aborted || !game || !game.renderer) {
           return;
+        }
+
+        // CRITICAL: Initialize win notification AFTER textures are loaded
+        // This ensures the win-notification texture exists
+        if (game.initializeWinDisplay) {
+          game.initializeWinDisplay();
         }
 
         // Get loaded textures
@@ -222,6 +230,12 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         // Initialize car spawner with road, chicken, gate manager, and container element
         // Get container element (parent of canvas)
         const containerElement = canvas.parentElement;
+
+        // Store container element in game for win notification positioning
+        if (game.setContainerElement && containerElement) {
+          game.setContainerElement(containerElement);
+        }
+
         if (game.carSpawner) {
           try {
             game.carSpawner.initialize(

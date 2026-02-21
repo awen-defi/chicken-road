@@ -15,6 +15,7 @@ export default function App() {
   const [betAmount, setBetAmount] = useState(1);
   const [difficulty, setDifficulty] = useState("Easy"); // Easy, Medium, Hard, Hardcore
   const [gameState, setGameState] = useState("idle"); // idle, playing, won, lost
+  const [currentMultiplier, setCurrentMultiplier] = useState(1.0); // Current multiplier for dynamic cashout button
   const [jumpChickenFn, setJumpChickenFn] = useState(null);
   const [getCurrentMultiplierFn, setGetCurrentMultiplierFn] = useState(null);
   const [finishCurrentLaneFn, setFinishCurrentLaneFn] = useState(null);
@@ -55,11 +56,16 @@ export default function App() {
         resetGameFn();
       }
 
+      // Hide any existing win notification
+      const game = window.__GAME_INSTANCE__;
+      if (game && game.hideWinNotification) {
+        game.hideWinNotification();
+      }
+
       setBalance((prev) => roundCurrency(prev - betAmount));
       setGameState("playing");
 
       // CRITICAL: Start the PixiJS game engine (enables car spawning & movement)
-      const game = window.__GAME_INSTANCE__;
       if (game) {
         game.state = "playing";
       }
@@ -88,13 +94,18 @@ export default function App() {
             setBalance((prev) => roundCurrency(prev + totalPayout));
             setGameState("won");
 
-            // Step 4: Pause game systems (stop car spawning)
+            // Step 4: Show win notification
             const game = window.__GAME_INSTANCE__;
+            if (game && game.showWinNotification) {
+              game.showWinNotification(winnings, 3000); // 3 seconds for auto-win
+            }
+
+            // Step 5: Pause game systems (stop car spawning)
             if (game) {
               game.state = "idle"; // Stop car spawning during win sequence
             }
 
-            // Step 5: Wait 3 seconds, then auto-reset to start position
+            // Step 6: Wait 3 seconds, then auto-reset to start position
             setTimeout(() => {
               if (resetGameFn) {
                 resetGameFn();
@@ -148,6 +159,23 @@ export default function App() {
     }
   }, [registerCollisionCallbackFn, handleCollision, handleResetComplete]);
 
+  // Update current multiplier in real-time while playing
+  useEffect(() => {
+    if (gameState !== "playing" || !getCurrentMultiplierFn) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCurrentMultiplier(1.0);
+      return;
+    }
+
+    // Update multiplier every 100ms for smooth button updates
+    const intervalId = setInterval(() => {
+      const multiplier = getCurrentMultiplierFn();
+      setCurrentMultiplier(multiplier);
+    }, 100);
+
+    return () => clearInterval(intervalId);
+  }, [gameState, getCurrentMultiplierFn]);
+
   // Handle cashout button click
   const handleCashout = useCallback(() => {
     if (gameState !== "playing") return;
@@ -167,19 +195,24 @@ export default function App() {
     setBalance((prev) => roundCurrency(prev + totalPayout));
     setGameState("won");
 
-    // Pause game systems (stop car spawning)
+    // Show win notification
     const game = window.__GAME_INSTANCE__;
+    if (game && game.showWinNotification) {
+      game.showWinNotification(winnings, 2000); // 2 seconds for manual cashout
+    }
+
+    // Pause game systems (stop car spawning)
     if (game) {
       game.state = "idle"; // Stop car spawning during cashout
     }
 
-    // Reset game immediately after cashout (no 3-second delay for manual cashout)
+    // Reset game after notification is visible (2-second delay for manual cashout)
     if (resetGameFn) {
       setTimeout(() => {
         resetGameFn();
         // Return to idle state to show PLAY button
         setGameState("idle");
-      }, 100);
+      }, 2100); // Slightly longer than notification duration
     }
   }, [
     gameState,
@@ -206,6 +239,7 @@ export default function App() {
         onCashout={handleCashout}
         gameState={gameState}
         disabled={gameState === "playing"}
+        currentMultiplier={currentMultiplier}
       />
     </div>
   );

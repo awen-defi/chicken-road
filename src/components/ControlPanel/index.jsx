@@ -2,6 +2,14 @@ import { useState, useEffect } from "react";
 import { DollarIcon } from "../DollarIcon";
 import "./index.css";
 
+/**
+ * Helper function to round currency to 2 decimal places
+ * Prevents floating-point precision issues
+ */
+const roundCurrency = (amount) => {
+  return Math.round(amount * 100) / 100;
+};
+
 export function ControlPanel({
   betAmount,
   setBetAmount,
@@ -11,6 +19,7 @@ export function ControlPanel({
   onCashout,
   gameState = "idle",
   disabled = false,
+  currentMultiplier = 1.0,
 }) {
   const [sliderValue, setSliderValue] = useState(1);
 
@@ -30,6 +39,9 @@ export function ControlPanel({
 
   const isPlaying = gameState === "playing";
   const buttonText = isPlaying ? "GO" : "Play";
+
+  // Calculate cashout value with proper rounding
+  const cashoutValue = roundCurrency(betAmount * currentMultiplier);
 
   return (
     <div className="control-panel">
@@ -93,6 +105,8 @@ export function ControlPanel({
           {isPlaying && (
             <button className="cashout-button" onClick={onCashout}>
               CASH OUT
+              <br />
+              {cashoutValue.toFixed(2)} USD
             </button>
           )}
 

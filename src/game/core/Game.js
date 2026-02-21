@@ -2,6 +2,7 @@ import { PixiRenderer } from "./PixiRenderer.js";
 import { CarSpawner } from "../systems/CarSpawner.js";
 import { CoinManager } from "../managers/CoinManager.js";
 import { GateManager } from "../managers/GateManager.js";
+import * as PIXI from "pixi.js";
 
 /**
  * Game - Main game class that orchestrates all game systems using Pixi.js
@@ -28,6 +29,20 @@ export class Game {
     // Entity references for dynamic updates
     this.road = null;
     this.finishScenery = null;
+
+    // Win notification UI
+    this.winDisplay = null;
+    this.winNotificationSprite = null;
+    this.winHeaderText = null; // "Win!" header
+    this.winAmountText = null;
+    this.winDisplayTimeout = null;
+    this.containerElement = null; // Store container for viewport dimensions
+
+    // Pulse animation for win notification
+    this.pulseAnimationActive = false;
+    this.pulseAnimationTime = 0;
+    this.pulseIntensity = 0.05; // 5% scale growth
+    this.pulseSpeed = 3.0; // Calm, rhythmic pulse
   }
 
   /**
@@ -54,6 +69,9 @@ export class Game {
 
     // Initialize gate manager
     this.gateManager = new GateManager(this.config);
+
+    // NOTE: Win notification will be initialized AFTER textures load in useGame.js
+    // This ensures the win-notification texture exists before creating the sprite
 
     this.initialized = true;
   }
@@ -152,6 +170,22 @@ export class Game {
         this.gateManager.update(deltaTime);
       }
     }
+
+    // Update win notification pulse animation (only when visible)
+    if (
+      this.pulseAnimationActive &&
+      this.winDisplay &&
+      this.winDisplay.visible
+    ) {
+      this.pulseAnimationTime += deltaTime;
+
+      // Calculate scale using sine wave: Scale = 1.0 + sin(time * speed) * intensity
+      const scale =
+        1.0 +
+        Math.sin(this.pulseAnimationTime * this.pulseSpeed) *
+          this.pulseIntensity;
+      this.winDisplay.scale.set(scale);
+    }
   }
 
   /**
@@ -219,6 +253,203 @@ export class Game {
   }
 
   /**
+   * Initialize win notification display
+   * MUST be called AFTER textures are loaded
+   */
+  initializeWinDisplay() {
+    if (!this.renderer || !this.renderer.app || !this.renderer.uiLayer) {
+      console.warn(
+        "⚠️ Win display init failed: renderer or uiLayer not available",
+      );
+      return;
+    }
+
+    // Get win notification texture
+    const notificationTexture = this.renderer.getTexture("win-notification");
+    if (!notificationTexture) {
+      console.warn(
+        "⚠️ Win notification texture not found - cannot create notification",
+      );
+      return;
+    }
+
+    console.log("🏆 Initializing win notification display...");
+
+    // Create container for win display
+    this.winDisplay = new PIXI.Container();
+    this.winDisplay.visible = false;
+    this.winDisplay.zIndex = 2000; // Very high to be on top within UI layer
+    this.winDisplay.pivot.set(0, 0); // Set pivot for centered scaling
+
+    // Create notification sprite
+    this.winNotificationSprite = new PIXI.Sprite(notificationTexture);
+    this.winNotificationSprite.anchor.set(0.5, 0.5);
+
+    // Create "Win!" header text
+    this.winHeaderText = new PIXI.Text("Win!", {
+      fontFamily: "Montserrat, sans-serif",
+      fontSize: 32, // 80% of win amount size (40 * 0.8 = 32)
+      fontWeight: "bold",
+      fill: "#ffffff",
+      dropShadow: true,
+      dropShadowColor: "#000000",
+      dropShadowBlur: 4,
+      dropShadowAngle: Math.PI / 4,
+      dropShadowDistance: 2,
+    });
+    this.winHeaderText.anchor.set(0.5, 0.5);
+
+    // Create text for win amount with coin styling
+    this.winAmountText = new PIXI.Text("$0.00", {
+      fontFamily: "Montserrat, sans-serif",
+      fontSize: 40,
+      fontWeight: "bold",
+      fill: "#ffffff", // Gold color like coins
+      dropShadow: true,
+      dropShadowColor: "#000000",
+      dropShadowBlur: 4,
+      dropShadowAngle: Math.PI / 4,
+      dropShadowDistance: 2,
+    });
+    this.winAmountText.anchor.set(0.5, 0.5);
+
+    // Add sprite and texts to container
+    this.winDisplay.addChild(this.winNotificationSprite);
+    this.winDisplay.addChild(this.winHeaderText);
+    this.winDisplay.addChild(this.winAmountText);
+
+    // CRITICAL: Add to UI layer (not main stage) so it doesn't scroll with world
+    this.renderer.uiLayer.addChild(this.winDisplay);
+    this.renderer.uiLayer.sortableChildren = true;
+
+    // Position at top center (will be updated on resize)
+    this.positionWinDisplay();
+
+    console.log("✅ Win notification display initialized successfully");
+  }
+
+  /**
+   * Set container element for viewport calculations
+   */
+  setContainerElement(container) {
+    this.containerElement = container;
+  }
+
+  /**
+   * Position win display at top center
+   */
+  positionWinDisplay() {
+    if (!this.winDisplay || !this.renderer || !this.renderer.app) return;
+
+    // Get the visible viewport dimensions from the container element
+    let viewportWidth = 800; // Default fallback
+    if (this.containerElement) {
+      viewportWidth = this.containerElement.clientWidth;
+    } else if (this.canvas) {
+      // Fallback to canvas parent container
+      const parent = this.canvas.parentElement;
+      if (parent) {
+        viewportWidth = parent.clientWidth;
+      }
+    }
+
+    // Get current stage offset (world scrolling)
+    const stageX = this.renderer.app.stage.x || 0;
+
+    // Position at center of visible viewport, compensating for stage scroll
+    // The notification should appear at the center of what the user can see
+    this.winDisplay.position.x = -stageX + viewportWidth / 2;
+    this.winDisplay.position.y = 100; // Fixed 100px from top
+
+    console.log(
+      `📍 Positioning notification: viewport=${viewportWidth}px, stageX=${stageX}, finalX=${this.winDisplay.position.x}`,
+    );
+
+    // Position texts within the notification sprite (vertically stacked)
+    if (
+      this.winHeaderText &&
+      this.winAmountText &&
+      this.winNotificationSprite
+    ) {
+      // Header "Win!" above the amount
+      this.winHeaderText.position.x = 0;
+      this.winHeaderText.position.y = -35; // 20px above center
+
+      // Amount below the header
+      this.winAmountText.position.x = 0;
+      this.winAmountText.position.y = 30; // 15px below center
+    }
+  }
+
+  /**
+   * Show win notification with amount
+   * @param {number} amount - Win amount to display
+   * @param {number} duration - Duration in milliseconds (3000 for auto-win, 2000 for cashout)
+   */
+  showWinNotification(amount, duration = 3000) {
+    if (!this.winDisplay || !this.winAmountText) {
+      console.warn("⚠️ Win display not initialized - cannot show notification");
+      return;
+    }
+
+    console.log(
+      `🏆 Showing win notification: $${amount.toFixed(2)} for ${duration}ms`,
+    );
+
+    // Clear any existing timeout
+    if (this.winDisplayTimeout) {
+      clearTimeout(this.winDisplayTimeout);
+      this.winDisplayTimeout = null;
+    }
+
+    // Round amount using currency helper to prevent floating point artifacts
+    const roundedAmount = Math.round(amount * 100) / 100;
+
+    // Update text with win amount
+    this.winAmountText.text = `$${roundedAmount.toFixed(2)}`;
+
+    // Re-position in case screen was resized
+    this.positionWinDisplay();
+
+    // Reset scale and start pulse animation
+    this.winDisplay.scale.set(1.0);
+    this.pulseAnimationActive = true;
+    this.pulseAnimationTime = 0;
+
+    // Show display
+    this.winDisplay.visible = true;
+    console.log(
+      `✅ Win notification visible at (${this.winDisplay.position.x}, ${this.winDisplay.position.y})`,
+    );
+
+    // Hide after duration
+    this.winDisplayTimeout = setTimeout(() => {
+      this.hideWinNotification();
+    }, duration);
+  }
+
+  /**
+   * Hide win notification
+   */
+  hideWinNotification() {
+    console.log("🚫 Hiding win notification");
+
+    // Stop pulse animation
+    this.pulseAnimationActive = false;
+    this.pulseAnimationTime = 0;
+
+    if (this.winDisplay) {
+      this.winDisplay.visible = false;
+      // Reset scale to avoid ghost animations
+      this.winDisplay.scale.set(1.0);
+    }
+    if (this.winDisplayTimeout) {
+      clearTimeout(this.winDisplayTimeout);
+      this.winDisplayTimeout = null;
+    }
+  }
+
+  /**
    * Set entity references for dynamic updates
    */
   setEntityReferences(road, finishScenery) {
@@ -279,6 +510,9 @@ export class Game {
     // The Play button handler will set state to "playing"
     this.state = "idle";
 
+    // Hide win notification if it's showing
+    this.hideWinNotification();
+
     // Reset coin manager
     if (this.coinManager) {
       try {
@@ -314,6 +548,8 @@ export class Game {
     if (this.renderer) {
       this.renderer.resize(width, height);
     }
+    // Reposition win display after resize
+    this.positionWinDisplay();
   }
 
   /**
@@ -322,6 +558,12 @@ export class Game {
   destroy() {
     // Stop game first
     this.state = "idle";
+
+    // Clear win display timeout
+    if (this.winDisplayTimeout) {
+      clearTimeout(this.winDisplayTimeout);
+      this.winDisplayTimeout = null;
+    }
 
     // Remove ticker callback safely
     if (this.renderer && this.renderer.app && this.renderer.app.ticker) {

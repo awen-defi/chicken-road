@@ -10,6 +10,7 @@ export class PixiRenderer {
     this.canvas = canvas;
     this.app = null;
     this.stage = null;
+    this.uiLayer = null; // Separate UI layer for notifications that don't scroll
     this.initialized = false;
 
     // Configuration with optimal defaults
@@ -56,6 +57,14 @@ export class PixiRenderer {
       this.stage.cullable = false;
       console.log("🔧 Stage culling disabled to prevent car flickering");
     }
+
+    // Create separate UI layer for notifications that stays fixed on viewport
+    // This layer doesn't scroll with the game world (stage.x changes)
+    this.uiLayer = new Container();
+    this.uiLayer.zIndex = 10000; // Very high to be above everything
+    this.app.stage.addChild(this.uiLayer);
+    this.app.stage.sortableChildren = true;
+    console.log("🎨 UI Layer created for fixed viewport elements");
   }
 
   /**
