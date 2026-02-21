@@ -72,6 +72,8 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           // Coin images
           { key: "coin", url: "/coin.png" },
           { key: "coin-gold", url: "/coin-gold.png" },
+          // Chicken tooltip
+          { key: "chicken-tooltip", url: "/chicken-tooltip.png" },
           // Car images
           { key: "truck-orange", url: "/assets/truck-orange.png" },
           { key: "truck-blue", url: "/assets/truck-blue.png" },
@@ -96,7 +98,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         const finishTexture = textures.finish;
 
         // Scaling factor for all elements
-        const sceneryScale = 0.7;
+        const sceneryScale = 1.1; // Increased by 1.2x from previous 0.84 (0.84 * 1.2)
 
         // Calculate layout using scaled texture dimensions
         const startWidth = startTexture.width * sceneryScale;
@@ -118,12 +120,17 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         // Update game renderer with new size
         game.resize(totalWidth, totalHeight);
 
-        // Move scenery up to reveal walking road
-        const sceneryOffsetY = -50;
+        // Move scenery up to reveal walking road (isolated from road centering)
+        const sceneryOffsetY = -600; // Scenery stays at current position
+
+        // Calculate positions for game elements (chicken, coins, gates, road)
+        // Position chicken higher up on canvas for better visual centering
+        const gameElementsCenterY = totalHeight * 0.35; // Position in upper-middle area
+        const roadY = gameElementsCenterY - roadHeight / 2; // Road aligned with chicken
 
         // Create entities with Pixi texture
 
-        // Start scenery
+        // Start scenery (isolated positioning - unchanged)
         const startScenery = new Scenery(
           0,
           sceneryOffsetY,
@@ -133,8 +140,8 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         );
         entityManager.addEntity(startScenery);
 
-        // Road
-        const road = new Road(startWidth, 0, {
+        // Road (positioned to align with chicken)
+        const road = new Road(startWidth, roadY, {
           laneWidth: config.laneWidth,
           laneCount: config.laneCount,
           roadHeight: roadHeight,
@@ -146,7 +153,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         entityManager.addEntity(road);
         roadRef.current = road; // Store reference for updates
 
-        // Finish scenery (only half visible)
+        // Finish scenery (isolated positioning - unchanged)
         const finishScenery = new Scenery(
           startWidth + roadWidth,
           sceneryOffsetY,
@@ -157,9 +164,9 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         entityManager.addEntity(finishScenery);
         finishSceneryRef.current = finishScenery; // Store reference for updates
 
-        // Chicken with Spine animation
+        // Chicken with Spine animation (positioned in upper-middle for visual centering)
         const chickenX = startWidth - 160;
-        const chickenY = roadHeight * 0.7 + 70;
+        const chickenY = gameElementsCenterY; // Chicken at visual center (upper-middle)
 
         const chicken = new Chicken(chickenX, chickenY, {
           chickenSize: config.chickenSize,
@@ -172,6 +179,12 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           chicken.setSpine(chickenSpine);
         } else {
           console.error("Failed to create chicken Spine animation");
+        }
+
+        // Set tooltip texture
+        const tooltipTexture = game.renderer.getTexture("chicken-tooltip");
+        if (tooltipTexture) {
+          chicken.setTooltipTexture(tooltipTexture);
         }
 
         chicken.setDirection(true); // Facing right
@@ -305,9 +318,12 @@ export function useGame(canvasRef, config, scrollContainerRef) {
       const nextLane = currentLane + 1;
       const isJumpingToFinish = nextLane >= totalLanes - 1; // Detect if jumping TO finish line
 
-      // If jumping to finish, turn current coin gold IMMEDIATELY (before jump starts)
-      if (isJumpingToFinish && game.coinManager) {
-        game.coinManager.finishCurrentLane();
+      // If jumping to finish, hide tooltip and turn current coin gold IMMEDIATELY (before jump starts)
+      if (isJumpingToFinish) {
+        chicken.hideTooltip(); // Hide tooltip before jumping to finish
+        if (game.coinManager) {
+          game.coinManager.finishCurrentLane();
+        }
       }
       const targetX = lanePositionsRef.current[nextLane];
 
@@ -378,6 +394,19 @@ export function useGame(canvasRef, config, scrollContainerRef) {
       }
 
       currentLaneRef.current = nextLane;
+
+      // Update tooltip with new multiplier after landing (unless jumping to finish)
+      if (!isJumpingToFinish && game.coinManager) {
+        // Show tooltip on first lane (lane 1)
+        if (nextLane === 1) {
+          chicken.showTooltip();
+        }
+        // Schedule tooltip update after jump completes
+        setTimeout(() => {
+          const multiplier = game.coinManager.getCurrentMultiplier();
+          chicken.updateTooltipText(multiplier);
+        }, 400); // Match jump duration
+      }
 
       return true;
     },
@@ -494,6 +523,9 @@ export function useGame(canvasRef, config, scrollContainerRef) {
       chicken.y = chicken.jumpStartY;
 
       currentLaneRef.current = 0;
+
+      // Hide tooltip on reset
+      chicken.hideTooltip();
 
       // Reset chicken jump state
       chicken.isJumping = false;

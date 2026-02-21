@@ -8,16 +8,16 @@
  */
 export const GAME_CONFIG = {
   // Road settings
-  laneWidth: 210,
+  laneWidth: 252, // Increased by 1.2x (210 * 1.2)
   laneCount: 30, // Default - will be overridden by difficulty settings
   roadColor: "#716c69",
   lineColor: "#ffffff",
-  roadLineWidth: 3.5,
+  roadLineWidth: 4.2, // Increased by 1.2x (3.5 * 1.2)
   dashPattern: [28, 28],
 
   // Chicken settings
   chickenSize: 196,
-  chickenScale: 0.7,
+  chickenScale: 0.84, // Increased by 1.2x (0.7 * 1.2)
 
   // Performance
   targetFPS: 60,
@@ -42,10 +42,10 @@ export const GAME_CONFIG = {
 
   // Car spawner settings (vertical traffic) - optimized for performance
   carSpawner: {
-    minSpawnInterval: 0.3, // Much faster spawning
-    maxSpawnInterval: 1.2, // More frequent cars
-    minSpeed: 200, // Significantly faster (vertical movement)
-    maxSpeed: 450, // Much faster max speed
+    minSpawnInterval: 0.15, // Halved to compensate for 2x speed (0.3 / 2)
+    maxSpawnInterval: 0.6, // Halved to compensate for 2x speed (1.2 / 2)
+    minSpeed: 400, // Increased by 2.0x (200 * 2)
+    maxSpeed: 900, // Increased by 2.0x (450 * 2)
     poolSize: 30, // Larger pool for more simultaneous cars
   },
 };

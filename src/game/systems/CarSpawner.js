@@ -21,8 +21,8 @@ export class CarSpawner {
 
     // Spawn timing
     this.spawnTimer = 0;
-    this.minSpawnInterval = 0.3;
-    this.maxSpawnInterval = 1.2;
+    this.minSpawnInterval = 0.15; // Halved to compensate for 2x speed (0.3 / 2)
+    this.maxSpawnInterval = 0.6; // Halved to compensate for 2x speed (1.2 / 2)
     this.nextSpawnTime = this.getRandomSpawnInterval();
 
     // Lane configuration
@@ -44,8 +44,8 @@ export class CarSpawner {
     ];
 
     // Speed variation
-    this.minSpeed = 200;
-    this.maxSpeed = 450;
+    this.minSpeed = 400; // Increased by 2.0x (200 * 2)
+    this.maxSpeed = 900; // Increased by 2.0x (450 * 2)
 
     // Cleanup optimization
     this.cleanupFrameCounter = 0;

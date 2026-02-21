@@ -1,4 +1,5 @@
 import { BaseEntity } from "./BaseEntity.js";
+import { Sprite, Text } from "pixi.js";
 
 /**
  * Chicken - The player character entity using Spine animation
@@ -39,6 +40,11 @@ export class Chicken extends BaseEntity {
 
     // Jump completion callback
     this.onJumpComplete = null; // Callback to trigger when landing completes
+
+    // Tooltip for displaying multiplier
+    this.tooltipSprite = null;
+    this.tooltipText = null;
+    this.tooltipVisible = false;
   }
 
   /**
@@ -129,6 +135,115 @@ export class Chicken extends BaseEntity {
     }
 
     this.container.addChild(this.spine);
+  }
+
+  /**
+   * Set the tooltip texture and create tooltip UI
+   */
+  setTooltipTexture(texture) {
+    if (!this.container || !texture) {
+      console.warn("Cannot set tooltip: container or texture is null");
+      return;
+    }
+
+    // Create tooltip sprite
+    this.tooltipSprite = new Sprite(texture);
+    this.tooltipSprite.anchor.set(0.5);
+
+    // Dynamic scaling: make tooltip slightly narrower than chicken (90% width)
+    const chickenWidth = this.width; // Already scaled chicken width
+    const tooltipTextureWidth = texture.width;
+    const targetScale = (chickenWidth * 0.9) / tooltipTextureWidth; // 90% of chicken width
+
+    // Apply uniform scale to both axes (prevent stretching)
+    this.tooltipSprite.scale.set(targetScale);
+
+    // Position tightly below chicken - just 5px below feet
+    // Chicken origin is centered, so half height gets to feet
+    this.tooltipSprite.y = this.height / 2 + 5; // 5px gap below feet
+
+    this.tooltipSprite.visible = false;
+    this.tooltipSprite.zIndex = -1; // Behind chicken but above road
+
+    // Calculate text size to fill 90-95% of tooltip height
+    const tooltipHeight = texture.height * targetScale;
+    const textSize = tooltipHeight * 0.98; // Fill 92% of tooltip height
+
+    // Create tooltip text with maximized size
+    this.tooltipText = new Text({
+      text: "1.00x",
+      style: {
+        fontFamily: "Arial",
+        fontSize: textSize, // Large text to fill tooltip
+        fontWeight: "bold",
+        fill: "#ffffff",
+        stroke: { color: "#000000", width: 3 }, // Slightly thinner stroke to save space
+        dropShadow: {
+          alpha: 0.7,
+          angle: Math.PI / 4,
+          blur: 3, // Reduced blur for tighter fit
+          color: "#000000",
+          distance: 4, // Reduced distance for tighter fit
+        },
+        padding: 0, // Eliminate internal padding
+        trim: false, // Don't trim whitespace
+      },
+    });
+    this.tooltipText.anchor.set(0.5, 0.5); // Perfect center
+    this.tooltipText.x = 0;
+    this.tooltipText.y = 0;
+
+    // Add text to tooltip sprite
+    this.tooltipSprite.addChild(this.tooltipText);
+
+    // Add tooltip to chicken container (will move with chicken)
+    this.container.addChild(this.tooltipSprite);
+    this.container.sortableChildren = true;
+  }
+
+  /**
+   * Update tooltip text with current multiplier
+   */
+  updateTooltipText(multiplier) {
+    if (!this.tooltipText) return;
+
+    // Format multiplier text (same logic as coins)
+    let displayText;
+    if (multiplier >= 1000) {
+      if (multiplier >= 1000000) {
+        displayText = (multiplier / 1000000).toFixed(1) + "M x";
+      } else {
+        displayText = (multiplier / 1000).toFixed(1) + "K x";
+      }
+    } else if (multiplier >= 100) {
+      displayText = multiplier.toFixed(0) + "x";
+    } else if (multiplier >= 10) {
+      displayText = multiplier.toFixed(1) + "x";
+    } else {
+      displayText = multiplier.toFixed(2) + "x";
+    }
+
+    this.tooltipText.text = displayText;
+  }
+
+  /**
+   * Show the tooltip
+   */
+  showTooltip() {
+    if (this.tooltipSprite) {
+      this.tooltipSprite.visible = true;
+      this.tooltipVisible = true;
+    }
+  }
+
+  /**
+   * Hide the tooltip
+   */
+  hideTooltip() {
+    if (this.tooltipSprite) {
+      this.tooltipSprite.visible = false;
+      this.tooltipVisible = false;
+    }
   }
 
   /**
@@ -340,6 +455,9 @@ export class Chicken extends BaseEntity {
    * Play death animation
    */
   playDeath(onComplete) {
+    // Hide tooltip during death
+    this.hideTooltip();
+
     if (!this.spine || !this.spine.state) {
       console.warn("Cannot play death animation: spine not initialized");
       if (onComplete) onComplete();
@@ -371,6 +489,14 @@ export class Chicken extends BaseEntity {
    * Destroy and cleanup
    */
   destroy() {
+    if (this.tooltipText) {
+      this.tooltipText.destroy();
+      this.tooltipText = null;
+    }
+    if (this.tooltipSprite) {
+      this.tooltipSprite.destroy();
+      this.tooltipSprite = null;
+    }
     if (this.spine) {
       this.spine.destroy();
       this.spine = null;

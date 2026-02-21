@@ -13,12 +13,13 @@ export class Coin extends BaseEntity {
     this.value = config.value || 1.01;
     this.isCollected = false;
     this.isGold = false;
+    this.laneWidth = config.laneWidth || 252; // Store lane width for dynamic scaling
 
     this.sprite = null;
     this.text = null;
 
-    this.width = 120;
-    this.height = 120;
+    this.width = 144; // Base size (will be overridden by dynamic scaling)
+    this.height = 144; // Base size (will be overridden by dynamic scaling)
   }
 
   /**
@@ -36,8 +37,15 @@ export class Coin extends BaseEntity {
     // Create sprite with silver texture initially
     this.sprite = new Sprite(silverTexture);
     this.sprite.anchor.set(0.5);
-    this.sprite.width = this.width;
-    this.sprite.height = this.height;
+
+    // Dynamic scaling: fill lane width with 20px total padding (10px each side)
+    const targetSize = this.laneWidth - 80;
+    const textureWidth = silverTexture.width;
+    const dynamicScale = targetSize / textureWidth;
+
+    this.sprite.scale.set(dynamicScale);
+    this.width = targetSize;
+    this.height = targetSize;
 
     this.container.addChild(this.sprite);
 
@@ -62,13 +70,21 @@ export class Coin extends BaseEntity {
       text: displayText,
       style: {
         fontFamily: "Arial",
-        fontSize: 24,
+        fontSize: 40, // Scaled by 2x for better legibility (24 * 2)
         fontWeight: "bold",
         fill: "#ffffff",
         stroke: { color: "#000000", width: 4 },
+        dropShadow: {
+          alpha: 0.7,
+          angle: Math.PI / 4,
+          blur: 4,
+          color: "#000000",
+          distance: 5,
+        },
       },
     });
-    this.text.anchor.set(0.5);
+    this.text.anchor.set(0.5, 0.5); // Perfectly centered
+    this.text.x = 0;
     this.text.y = 0;
 
     this.container.addChild(this.text);

@@ -48,7 +48,7 @@ export class GateManager {
 
     // Calculate gate position (center of lane)
     const gateX = this.road.x + (laneIndex + 0.5) * laneWidth;
-    const gateY = this.chicken.y - 150; // Position higher than chicken
+    const gateY = this.chicken.y - 200; // Position higher than chicken (+100px offset)
 
     // Create gate with proper config
     const gate = new Gate(gateX, gateY, this.gateTexture, {

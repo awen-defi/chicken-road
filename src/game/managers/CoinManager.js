@@ -73,6 +73,7 @@ export class CoinManager {
       const coin = new Coin(coinX, coinY, {
         laneIndex: i,
         value: coinValue,
+        laneWidth: laneWidth, // Pass lane width for dynamic scaling
       });
 
       coin.setTextures(this.silverTexture, this.goldTexture);
