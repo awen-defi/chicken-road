@@ -15,7 +15,6 @@ export default function App() {
   const [betAmount, setBetAmount] = useState(1);
   const [difficulty, setDifficulty] = useState("Easy"); // Easy, Medium, Hard, Hardcore
   const [gameState, setGameState] = useState("idle"); // idle, playing, won, lost
-  const [score, setScore] = useState(0);
   const [jumpChickenFn, setJumpChickenFn] = useState(null);
   const [getCurrentMultiplierFn, setGetCurrentMultiplierFn] = useState(null);
   const [finishCurrentLaneFn, setFinishCurrentLaneFn] = useState(null);
@@ -58,7 +57,6 @@ export default function App() {
 
       setBalance((prev) => roundCurrency(prev - betAmount));
       setGameState("playing");
-      setScore(0);
 
       // CRITICAL: Start the PixiJS game engine (enables car spawning & movement)
       const game = window.__GAME_INSTANCE__;
@@ -69,10 +67,7 @@ export default function App() {
       // Automatically jump to first road line when game starts
       if (jumpChickenFn) {
         setTimeout(() => {
-          const success = jumpChickenFn();
-          if (success) {
-            setScore(1); // First jump counts as score
-          }
+          jumpChickenFn();
         }, 100); // Small delay to ensure game state is updated
       }
     } else if (gameState === "playing") {
@@ -106,16 +101,12 @@ export default function App() {
               }
               // Return to idle state to show PLAY button
               setGameState("idle");
-              setScore(0);
             }, 3000); // 3-second victory display
           }
         };
 
         // Jump with finish callback
-        const success = jumpChickenFn(triggerWinSequence);
-        if (success) {
-          setScore((prev) => prev + 1);
-        }
+        jumpChickenFn(triggerWinSequence);
         // Note: Win sequence now triggers automatically via callback, no manual trigger needed
       }
     }
@@ -125,7 +116,6 @@ export default function App() {
     balance,
     jumpChickenFn,
     getCurrentMultiplierFn,
-    finishCurrentLaneFn,
     resetGameFn,
   ]);
 
@@ -139,7 +129,6 @@ export default function App() {
     setGameState("lost");
 
     // REQUIREMENT: Reset score (current run's "Golds") - NOT permanent balance/possessions
-    setScore(0);
 
     // Note: Death sequence (animation + delay + reset) is handled in game logic
     // After reset completes, game will call onResetComplete to restore state
@@ -216,7 +205,6 @@ export default function App() {
         onPlay={handlePlay}
         onCashout={handleCashout}
         gameState={gameState}
-        score={score}
         disabled={gameState === "playing"}
       />
     </div>

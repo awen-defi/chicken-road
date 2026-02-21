@@ -10,7 +10,6 @@ export function ControlPanel({
   onPlay,
   onCashout,
   gameState = "idle",
-  score = 0,
   disabled = false,
 }) {
   const [sliderValue, setSliderValue] = useState(1);
@@ -30,7 +29,7 @@ export function ControlPanel({
   };
 
   const isPlaying = gameState === "playing";
-  const buttonText = isPlaying ? "GO" : "PLAY";
+  const buttonText = isPlaying ? "GO" : "Play";
 
   return (
     <div className="control-panel">
@@ -73,45 +72,39 @@ export function ControlPanel({
         <div className="difficulty-section">
           <div className="section-header">
             <span>Difficulty</span>
+            <span className="chance">Chance of being shot down</span>
           </div>
           <div className="difficulty-buttons">
             {difficultyLevels.map((level) => (
-              <button
+              <span
                 key={level}
                 className={`difficulty-button ${difficulty === level ? "active" : ""}`}
                 onClick={() => !disabled && setDifficulty(level)}
                 disabled={disabled}
               >
                 {level}
-              </button>
+              </span>
             ))}
           </div>
         </div>
 
-        {/* Chance Indicator */}
-        <div className="chance-section">
-          <div className="section-header">
-            <span>
-              {isPlaying ? `Score: ${score}` : "Chance of being shot down"}
-            </span>
-          </div>
-        </div>
+        <div className="buttons">
+          {/* Cashout Button - only visible when playing */}
+          {isPlaying && (
+            <button className="cashout-button" onClick={onCashout}>
+              CASH OUT
+            </button>
+          )}
 
-        {/* Play Button */}
-        <button
-          className={`play-button ${isPlaying ? "go-button" : ""}`}
-          onClick={onPlay}
-          disabled={gameState === "won" || gameState === "lost"}
-        >
-          {buttonText}
-        </button>
-
-        {/* Cashout Button - only visible when playing */}
-        {isPlaying && (
-          <button className="cashout-button" onClick={onCashout}>
-            CASHOUT
+          {/* Play Button */}
+          <button
+            className={`play-button ${isPlaying ? "go-button" : ""}`}
+            onClick={onPlay}
+            disabled={gameState === "won" || gameState === "lost"}
+          >
+            {buttonText}
           </button>
-        )}
+        </div>
       </div>
     </div>
   );
