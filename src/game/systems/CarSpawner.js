@@ -86,10 +86,6 @@ export class CarSpawner {
     this.laneWidth = road.laneWidth;
     this.setupLanes();
 
-    console.log(
-      `🎬 CarSpawner initialized - roadY: ${this.roadY}, roadHeight: ${this.roadHeight}, roadBottomY: ${this.roadY + this.roadHeight}`,
-    );
-
     // Pre-populate object pool
     this.initializePool();
   }
@@ -109,10 +105,6 @@ export class CarSpawner {
         spawnChance: 0.4 + Math.random() * 0.3, // Vary traffic density per lane
       });
     }
-
-    console.log(
-      `🛣️ Setup ${laneCount} lanes for car spawning (startX: ${this.startX}, laneWidth: ${laneWidth})`,
-    );
   }
 
   /**
@@ -187,12 +179,6 @@ export class CarSpawner {
         const stage = this.entityManager.stage;
         if (car.container.parent === stage) {
           stage.removeChild(car.container);
-          // Verify removal
-          if (car.container.parent === stage) {
-            console.warn(
-              "⚠️ Car container still on stage after removal attempt!",
-            );
-          }
         }
       } catch (e) {
         console.warn("Error removing car from stage:", e);
@@ -269,15 +255,8 @@ export class CarSpawner {
       Math.floor(chickenLaneX / this.laneWidth),
     );
 
-    // Debug when chicken advances to a new lane
-    if (newChickenLaneIndex !== this.chickenLaneIndex) {
-      console.log(
-        `🐔 Chicken advanced to lane ${newChickenLaneIndex} (was ${this.chickenLaneIndex})`,
-      );
-      this.chickenLaneIndex = newChickenLaneIndex;
-    } else {
-      this.chickenLaneIndex = newChickenLaneIndex;
-    }
+    // Track chicken lane index
+    this.chickenLaneIndex = newChickenLaneIndex;
 
     const validLanes = [];
 

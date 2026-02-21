@@ -1,5 +1,5 @@
 import { BaseEntity } from "./BaseEntity.js";
-import { Sprite, Text } from "pixi.js";
+import { Sprite, Text, Container } from "pixi.js";
 
 /**
  * Chicken - The player character entity using Spine animation
@@ -158,16 +158,9 @@ export class Chicken extends BaseEntity {
     // Apply uniform scale to both axes (prevent stretching)
     this.tooltipSprite.scale.set(targetScale);
 
-    // Position tightly below chicken - just 5px below feet
-    // Chicken origin is centered, so half height gets to feet
-    this.tooltipSprite.y = this.height / 2 + 5; // 5px gap below feet
-
-    this.tooltipSprite.visible = false;
-    this.tooltipSprite.zIndex = -1; // Behind chicken but above road
-
     // Calculate text size to fill 90-95% of tooltip height
     const tooltipHeight = texture.height * targetScale;
-    const textSize = tooltipHeight * 0.98; // Fill 92% of tooltip height
+    const textSize = tooltipHeight * 0.4; // Fill 92% of tooltip height
 
     // Create tooltip text with maximized size
     this.tooltipText = new Text({
@@ -191,13 +184,21 @@ export class Chicken extends BaseEntity {
     });
     this.tooltipText.anchor.set(0.5, 0.5); // Perfect center
     this.tooltipText.x = 0;
-    this.tooltipText.y = 0;
+    this.tooltipText.y = 12;
 
-    // Add text to tooltip sprite
-    this.tooltipSprite.addChild(this.tooltipText);
+    // PixiJS v8: Sprite can't have children, wrap in Container
+    this.tooltipContainer = new Container();
+    this.tooltipContainer.addChild(this.tooltipSprite);
+    this.tooltipContainer.addChild(this.tooltipText);
+    this.tooltipContainer.visible = false;
+    this.tooltipContainer.zIndex = -1; // Behind chicken but above road
 
-    // Add tooltip to chicken container (will move with chicken)
-    this.container.addChild(this.tooltipSprite);
+    // Position tightly below chicken - just 5px below feet
+    // Chicken origin is centered, so half height gets to feet
+    this.tooltipContainer.y = this.height / 2 + 5; // 5px gap below feet
+
+    // Add tooltip container to chicken (will move with chicken)
+    this.container.addChild(this.tooltipContainer);
     this.container.sortableChildren = true;
   }
 
@@ -230,8 +231,8 @@ export class Chicken extends BaseEntity {
    * Show the tooltip
    */
   showTooltip() {
-    if (this.tooltipSprite) {
-      this.tooltipSprite.visible = true;
+    if (this.tooltipContainer) {
+      this.tooltipContainer.visible = true;
       this.tooltipVisible = true;
     }
   }
@@ -240,8 +241,8 @@ export class Chicken extends BaseEntity {
    * Hide the tooltip
    */
   hideTooltip() {
-    if (this.tooltipSprite) {
-      this.tooltipSprite.visible = false;
+    if (this.tooltipContainer) {
+      this.tooltipContainer.visible = false;
       this.tooltipVisible = false;
     }
   }

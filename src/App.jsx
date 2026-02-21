@@ -160,6 +160,7 @@ export default function App() {
   }, [registerCollisionCallbackFn, handleCollision, handleResetComplete]);
 
   // Update current multiplier in real-time while playing
+  // PERFORMANCE: Use requestAnimationFrame for smooth 60fps updates synced with render
   useEffect(() => {
     if (gameState !== "playing" || !getCurrentMultiplierFn) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -167,13 +168,27 @@ export default function App() {
       return;
     }
 
-    // Update multiplier every 100ms for smooth button updates
-    const intervalId = setInterval(() => {
-      const multiplier = getCurrentMultiplierFn();
-      setCurrentMultiplier(multiplier);
-    }, 100);
+    let animationFrameId;
+    let lastUpdateTime = 0;
+    const updateInterval = 100; // Update state max every 100ms to avoid excessive re-renders
 
-    return () => clearInterval(intervalId);
+    const updateMultiplier = (timestamp) => {
+      // Throttle updates to every 100ms to prevent excessive React re-renders
+      if (timestamp - lastUpdateTime >= updateInterval) {
+        const multiplier = getCurrentMultiplierFn();
+        setCurrentMultiplier(multiplier);
+        lastUpdateTime = timestamp;
+      }
+      animationFrameId = requestAnimationFrame(updateMultiplier);
+    };
+
+    animationFrameId = requestAnimationFrame(updateMultiplier);
+
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
   }, [gameState, getCurrentMultiplierFn]);
 
   // Handle cashout button click

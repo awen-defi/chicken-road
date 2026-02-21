@@ -90,6 +90,14 @@ export class Game {
     // Game loop will run but won't spawn cars or update systems until state = "playing"
     this.state = "idle";
 
+    // PERFORMANCE: Remove existing callback first to prevent duplicate tickers (memory leak)
+    // Use try-catch since ticker may not have callback registered
+    try {
+      this.renderer.app.ticker.remove(this.gameLoop, this);
+    } catch {
+      // Callback wasn't registered yet, that's fine
+    }
+
     // Use Pixi's built-in ticker for optimal performance
     this.renderer.app.ticker.add(this.gameLoop, this);
   }
@@ -118,10 +126,14 @@ export class Game {
    * Reset the game
    */
   reset() {
-    if (this.renderer.app) {
+    if (this.renderer.app && this.renderer.app.ticker) {
       this.renderer.app.ticker.remove(this.gameLoop, this);
     }
     this.state = "idle";
+
+    // Stop any active animations
+    this.pulseAnimationActive = false;
+    this.pulseAnimationTime = 0;
   }
 
   /**
@@ -273,8 +285,6 @@ export class Game {
       return;
     }
 
-    console.log("🏆 Initializing win notification display...");
-
     // Create container for win display
     this.winDisplay = new PIXI.Container();
     this.winDisplay.visible = false;
@@ -285,31 +295,39 @@ export class Game {
     this.winNotificationSprite = new PIXI.Sprite(notificationTexture);
     this.winNotificationSprite.anchor.set(0.5, 0.5);
 
-    // Create "Win!" header text
-    this.winHeaderText = new PIXI.Text("Win!", {
-      fontFamily: "Montserrat, sans-serif",
-      fontSize: 32, // 80% of win amount size (40 * 0.8 = 32)
-      fontWeight: "bold",
-      fill: "#ffffff",
-      dropShadow: true,
-      dropShadowColor: "#000000",
-      dropShadowBlur: 4,
-      dropShadowAngle: Math.PI / 4,
-      dropShadowDistance: 2,
+    // Create "Win!" header text (PixiJS v8 format)
+    this.winHeaderText = new PIXI.Text({
+      text: "Win!",
+      style: {
+        fontFamily: "Montserrat, sans-serif",
+        fontSize: 32, // 80% of win amount size (40 * 0.8 = 32)
+        fontWeight: "bold",
+        fill: "#ffffff",
+        dropShadow: {
+          color: "#000000",
+          blur: 4,
+          angle: Math.PI / 4,
+          distance: 2,
+        },
+      },
     });
     this.winHeaderText.anchor.set(0.5, 0.5);
 
-    // Create text for win amount with coin styling
-    this.winAmountText = new PIXI.Text("$0.00", {
-      fontFamily: "Montserrat, sans-serif",
-      fontSize: 40,
-      fontWeight: "bold",
-      fill: "#ffffff", // Gold color like coins
-      dropShadow: true,
-      dropShadowColor: "#000000",
-      dropShadowBlur: 4,
-      dropShadowAngle: Math.PI / 4,
-      dropShadowDistance: 2,
+    // Create text for win amount with coin styling (PixiJS v8 format)
+    this.winAmountText = new PIXI.Text({
+      text: "$0.00",
+      style: {
+        fontFamily: "Montserrat, sans-serif",
+        fontSize: 40,
+        fontWeight: "bold",
+        fill: "#ffffff", // Gold color like coins
+        dropShadow: {
+          color: "#000000",
+          blur: 4,
+          angle: Math.PI / 4,
+          distance: 2,
+        },
+      },
     });
     this.winAmountText.anchor.set(0.5, 0.5);
 
@@ -324,8 +342,6 @@ export class Game {
 
     // Position at top center (will be updated on resize)
     this.positionWinDisplay();
-
-    console.log("✅ Win notification display initialized successfully");
   }
 
   /**
@@ -361,10 +377,6 @@ export class Game {
     this.winDisplay.position.x = -stageX + viewportWidth / 2;
     this.winDisplay.position.y = 100; // Fixed 100px from top
 
-    console.log(
-      `📍 Positioning notification: viewport=${viewportWidth}px, stageX=${stageX}, finalX=${this.winDisplay.position.x}`,
-    );
-
     // Position texts within the notification sprite (vertically stacked)
     if (
       this.winHeaderText &&
@@ -392,10 +404,6 @@ export class Game {
       return;
     }
 
-    console.log(
-      `🏆 Showing win notification: $${amount.toFixed(2)} for ${duration}ms`,
-    );
-
     // Clear any existing timeout
     if (this.winDisplayTimeout) {
       clearTimeout(this.winDisplayTimeout);
@@ -418,9 +426,6 @@ export class Game {
 
     // Show display
     this.winDisplay.visible = true;
-    console.log(
-      `✅ Win notification visible at (${this.winDisplay.position.x}, ${this.winDisplay.position.y})`,
-    );
 
     // Hide after duration
     this.winDisplayTimeout = setTimeout(() => {
@@ -432,12 +437,6 @@ export class Game {
    * Hide win notification
    */
   hideWinNotification() {
-    console.log("🚫 Hiding win notification");
-
-    // Stop pulse animation
-    this.pulseAnimationActive = false;
-    this.pulseAnimationTime = 0;
-
     if (this.winDisplay) {
       this.winDisplay.visible = false;
       // Reset scale to avoid ghost animations

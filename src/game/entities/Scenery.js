@@ -39,6 +39,10 @@ export class Scenery extends BaseEntity {
 
     this.width = texture.width * this.scale;
     this.height = texture.height * this.scale;
+
+    // PERFORMANCE: Cache scenery as texture since it's static (PixiJS v8)
+    // This treats the scenery as a single texture, improving rendering performance
+    this.container.cacheAsTexture = true;
   }
 
   /**

@@ -55,7 +55,6 @@ export class PixiRenderer {
     // PixiJS may automatically cull objects it thinks are off-screen
     if (this.stage) {
       this.stage.cullable = false;
-      console.log("🔧 Stage culling disabled to prevent car flickering");
     }
 
     // Create separate UI layer for notifications that stays fixed on viewport
@@ -64,7 +63,6 @@ export class PixiRenderer {
     this.uiLayer.zIndex = 10000; // Very high to be above everything
     this.app.stage.addChild(this.uiLayer);
     this.app.stage.sortableChildren = true;
-    console.log("🎨 UI Layer created for fixed viewport elements");
   }
 
   /**

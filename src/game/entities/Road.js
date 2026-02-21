@@ -26,6 +26,10 @@ export class Road extends BaseEntity {
     if (this.container) {
       this.container.addChild(this.graphics);
       this.drawRoad();
+
+      // PERFORMANCE: Cache as texture since road is static (PixiJS v8)
+      // This treats the entire road as a single texture, dramatically improving FPS
+      this.container.cacheAsTexture = true;
     }
   }
 
@@ -96,7 +100,18 @@ export class Road extends BaseEntity {
   updateLaneCount(newLaneCount) {
     this.laneCount = newLaneCount;
     this.width = this.laneWidth * this.laneCount;
+
+    // Temporarily disable cache while redrawing (PixiJS v8)
+    if (this.container) {
+      this.container.cacheAsTexture = false;
+    }
+
     this.drawRoad();
+
+    // Re-enable cache after redrawing (PixiJS v8)
+    if (this.container) {
+      this.container.cacheAsTexture = true;
+    }
   }
 
   /**

@@ -28,6 +28,7 @@ export class Car extends BaseEntity {
 
     // For object pooling
     this.inUse = true;
+    this.active = true;
   }
 
   /**
@@ -75,15 +76,13 @@ export class Car extends BaseEntity {
     this.gate = config.gate || null;
     this.isStopped = false;
     this.active = true;
-    this.visible = true;
     this.isOffscreen = false;
     this.inUse = true;
 
     // Guard against null container
     if (this.container) {
       this.container.position.set(x, y);
-      this.container.visible = true;
-      this.container.renderable = true; // Ensure PixiJS doesn't cull it
+      this.container.renderable = true; // Use renderable instead of visible for better performance
       this.container.cullable = false; // Disable automatic culling
 
       // CRITICAL: Ensure container bounds are not cached (they update as car moves)
@@ -135,15 +134,6 @@ export class Car extends BaseEntity {
     // Move car downward along the lane
     this.y += this.speed * deltaTime;
 
-    // Debug: Log position of cars on higher lanes every 60 frames (~1 second)
-    if (this.lane > 7 && Math.random() < 0.016) {
-      // ~1/60 chance per frame
-      const worldBounds = this.container?.getBounds();
-      console.log(
-        `🚗 Car lane ${this.lane}: localY=${Math.round(this.y)}, worldY=${worldBounds ? Math.round(worldBounds.y) : "N/A"}, speed=${this.speed}, active=${this.active}`,
-      );
-    }
-
     // Check if car has moved off the bottom of the screen
     if (this.y > this.roadBottomY + 200) {
       this.isOffscreen = true;
@@ -151,15 +141,14 @@ export class Car extends BaseEntity {
   }
 
   /**
-   * Release car back to pool
+   * Release car back to pool (use renderable for better performance)
    */
   release() {
     this.inUse = false;
     this.active = false;
-    this.visible = false;
     this.isStopped = false; // Reset stopped state
     if (this.container) {
-      this.container.visible = false;
+      this.container.renderable = false; // Better than visible = false for performance
     }
   }
 
