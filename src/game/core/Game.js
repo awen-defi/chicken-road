@@ -43,7 +43,7 @@ export class Game {
     this.pulseAnimationActive = false;
     this.pulseAnimationTime = 0;
     this.pulseIntensity = 0.05; // 5% scale growth
-    this.pulseSpeed = 3.0; // Calm, rhythmic pulse
+    this.pulseSpeed = 4.0; // Calm, rhythmic pulse
   }
 
   /**
