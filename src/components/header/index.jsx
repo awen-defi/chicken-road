@@ -1,12 +1,22 @@
 import "./index.css";
 import { DollarIcon } from "../DollarIcon";
+import { useRef } from "react";
+import { HowToPlayModal } from "./how-to-play-modal";
 
 export function Header({ balance = 1000000 }) {
+  const howToPlayModalRef = useRef(null);
+
   const formatBalance = (num) => {
     // Round to 2 decimal places for display
     const rounded = Math.round(num * 100) / 100;
     // Format with spaces for thousands and 2 decimal places
     return rounded.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  };
+
+  const openHowToPlayModal = () => {
+    if (howToPlayModalRef.current) {
+      howToPlayModalRef.current.showModal();
+    }
   };
 
   return (
@@ -16,7 +26,7 @@ export function Header({ balance = 1000000 }) {
       </div>
 
       <div className="header-actions">
-        <div className="how-to-play">
+        <div className="how-to-play" onClick={openHowToPlayModal}>
           <svg
             width="16"
             height="16"
@@ -102,6 +112,8 @@ export function Header({ balance = 1000000 }) {
           </svg>
         </div>
       </div>
+
+      <HowToPlayModal ref={howToPlayModalRef} />
     </div>
   );
 }

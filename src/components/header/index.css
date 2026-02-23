@@ -112,6 +112,88 @@
   cursor: pointer;
 }
 
+.how-to-play-modal {
+  padding: 32px;
+  background: rgb(84, 84, 84);
+  border: 2px solid rgb(84, 84, 84);
+  border-radius: 12px;
+  transition: 0.3s;
+  height: max-content;
+  box-shadow: none;
+  position: relative;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: auto;
+  color: #f0f0f0;
+  width: 576px;
+  max-width: 90%;
+  outline: 0;
+}
+
+.how-to-play-modal::backdrop {
+  background: rgba(26, 26, 26, 0.8);
+  backdrop-filter: blur(5px);
+}
+
+.how-to-play-modal-x {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.how-to-play-modal-x path {
+  stroke: #f0f0f0;
+  fill: #f0f0f0;
+  transition: all 0.1s;
+}
+
+.how-to-play-modal-x:hover path {
+  stroke: rgb(253, 207, 75);
+  fill: rgb(253, 207, 75);
+}
+
+.how-to-play-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.how-to-play-modal-header-text {
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 150%;
+}
+
+.HowToPlayList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.HowToPlayListItem {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 4px;
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 150%;
+  letter-spacing: -0.3px;
+  color: rgb(255, 255, 255);
+  white-space: pre-wrap;
+  font-family: Montserrat, sans-serif;
+}
+
+.HowToPlaySublist {
+  margin-left: 10px;
+}
+
+.HowToPlaySublistItem {
+  margin-bottom: 15px;
+}
+
 @media (min-aspect-ratio: 110 / 100) {
   .header {
     height: 49px;
