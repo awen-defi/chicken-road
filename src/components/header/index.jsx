@@ -19,6 +19,34 @@ export function Header({ balance = 1000000 }) {
     }
   };
 
+  const handleFullScreen = () => {
+    if (document.fullscreenElement) {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.mozCancelFullScreen) {
+        document.mozCancelFullScreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      }
+    } else {
+      const elem = document.documentElement;
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen();
+      } else if (elem.mozRequestFullScreen) {
+        /* Firefox */
+        elem.mozRequestFullScreen();
+      } else if (elem.webkitRequestFullscreen) {
+        /* Chrome, Safari and Opera */
+        elem.webkitRequestFullscreen();
+      } else if (elem.msRequestFullscreen) {
+        /* IE/Edge */
+        elem.msRequestFullscreen();
+      }
+    }
+  };
+
   return (
     <div className="header">
       <div className="logo-container">
@@ -57,7 +85,7 @@ export function Header({ balance = 1000000 }) {
           <DollarIcon />
         </div>
 
-        <div className="fullscreen-button">
+        <div className="fullscreen-button" onClick={handleFullScreen}>
           <svg
             width="12"
             height="13"
