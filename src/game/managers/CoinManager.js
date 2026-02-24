@@ -1,9 +1,11 @@
 import { Coin } from "../entities/Coin.js";
 import { DIFFICULTY_SETTINGS } from "../../config/gameConfig.js";
+import { gameEvents } from "../core/GameEventBus.js";
 
 /**
  * CoinManager - Manages all coins across lanes
  * Handles coin creation, visibility, and state updates
+ * Emits lane:changed events for FSM state transitions
  */
 export class CoinManager {
   constructor(config) {
@@ -133,6 +135,12 @@ export class CoinManager {
   onLaneChanged(newLaneIndex) {
     const oldLaneIndex = this.currentLaneIndex;
     this.currentLaneIndex = newLaneIndex;
+
+    // Emit lane:changed event for FSM state transitions
+    gameEvents.emit("lane:changed", {
+      laneIndex: newLaneIndex,
+      oldLaneIndex: oldLaneIndex,
+    });
 
     // If chicken moved forward (to a higher lane index)
     if (newLaneIndex > this.highestPassedLane) {

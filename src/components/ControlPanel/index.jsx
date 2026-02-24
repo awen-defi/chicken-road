@@ -20,6 +20,8 @@ export function ControlPanel({
   gameState = "idle",
   disabled = false,
   currentMultiplier = 1.0,
+  goButtonDisabled = false,
+  cashoutButtonDisabled = true,
 }) {
   const [sliderValue, setSliderValue] = useState(1);
 
@@ -101,9 +103,17 @@ export function ControlPanel({
         </div>
 
         <div className="buttons">
-          {/* Cashout Button - only visible when playing */}
-          {isPlaying && (
-            <button className="cashout-button" onClick={onCashout}>
+          {/* Cashout Button - visible when playing or at finish */}
+          {(isPlaying || gameState === "atFinish") && (
+            <button
+              className="cashout-button"
+              onClick={onCashout}
+              disabled={cashoutButtonDisabled}
+              style={{
+                opacity: cashoutButtonDisabled ? 0.5 : 1,
+                cursor: cashoutButtonDisabled ? "not-allowed" : "pointer",
+              }}
+            >
               CASH OUT
               <br />
               {cashoutValue.toFixed(2)} USD
@@ -114,7 +124,11 @@ export function ControlPanel({
           <button
             className={`play-button ${isPlaying ? "go-button" : ""}`}
             onClick={onPlay}
-            disabled={gameState === "won" || gameState === "lost"}
+            disabled={goButtonDisabled}
+            style={{
+              opacity: goButtonDisabled ? 0.5 : 1,
+              cursor: goButtonDisabled ? "not-allowed" : "pointer",
+            }}
           >
             {buttonText}
           </button>

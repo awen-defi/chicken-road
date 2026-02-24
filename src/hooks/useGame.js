@@ -6,6 +6,7 @@ import { Chicken } from "../game/entities/Chicken.js";
 import { Road } from "../game/entities/Road.js";
 import { Scenery } from "../game/entities/Scenery.js";
 import { DIFFICULTY_SETTINGS } from "../config/gameConfig.js";
+import { gameEvents } from "../game/core/GameEventBus.js";
 
 /**
  * useGame - Custom hook to manage game instance lifecycle with Pixi.js
@@ -397,9 +398,9 @@ export function useGame(canvasRef, config, scrollContainerRef) {
       const currentLane = currentLaneRef.current;
       const totalLanes = totalLanesRef.current;
 
-      // Check if chicken can jump forward
-      if (currentLane >= totalLanes - 1) {
-        return false; // Already at finish
+      // Check if chicken can jump forward (allow jumping from last coin to finish)
+      if (currentLane >= totalLanes) {
+        return false; // Already at or beyond finish
       }
 
       // Move to next lane
@@ -482,6 +483,17 @@ export function useGame(canvasRef, config, scrollContainerRef) {
       }
 
       currentLaneRef.current = nextLane;
+
+      // Emit lane change event for finish line (CoinManager won't detect it because there's no coin)
+      if (isJumpingToFinish) {
+        // Wait for jump to complete before emitting finish event
+        setTimeout(() => {
+          gameEvents.emit("lane:changed", {
+            laneIndex: nextLane,
+            oldLaneIndex: currentLane,
+          });
+        }, 400); // Match jump duration
+      }
 
       // Update tooltip with new multiplier after landing (unless jumping to finish)
       if (!isJumpingToFinish && game.coinManager) {

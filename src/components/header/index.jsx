@@ -3,7 +3,7 @@ import { DollarIcon } from "../DollarIcon";
 import { useRef } from "react";
 import { HowToPlayModal } from "./how-to-play-modal";
 
-export function Header({ balance = 1000000 }) {
+export function Header({ balance }) {
   const howToPlayModalRef = useRef(null);
 
   const formatBalance = (num) => {

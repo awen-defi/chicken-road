@@ -1,6 +1,13 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import "./App.css";
-import { Header, GameArea, ControlPanel, LoadingScreen } from "./components";
+import {
+  Header,
+  GameArea,
+  ControlPanel,
+  LoadingScreen,
+  HandIndicator,
+} from "./components";
+import { gameEvents } from "./game/core/GameEventBus.js";
 
 /**
  * Helper function to round currency to 2 decimal places
@@ -11,11 +18,18 @@ const roundCurrency = (amount) => {
 };
 
 export default function App() {
-  const [balance, setBalance] = useState(1000000);
+  // Financial state
+  const [balance, setBalance] = useState(20);
   const [betAmount, setBetAmount] = useState(1);
-  const [difficulty, setDifficulty] = useState("Easy"); // Easy, Medium, Hard, Hardcore
-  const [gameState, setGameState] = useState("idle"); // idle, playing, won, lost
-  const [currentMultiplier, setCurrentMultiplier] = useState(1.0); // Current multiplier for dynamic cashout button
+  const [difficulty, setDifficulty] = useState("Easy");
+
+  // Game state: idle, playing, atFinish, won, lost
+  const [gameState, setGameState] = useState("idle");
+
+  // UI state
+  const [currentMultiplier, setCurrentMultiplier] = useState(1.0);
+
+  // Game function references
   const [jumpChickenFn, setJumpChickenFn] = useState(null);
   const [getCurrentMultiplierFn, setGetCurrentMultiplierFn] = useState(null);
   const [finishCurrentLaneFn, setFinishCurrentLaneFn] = useState(null);
@@ -24,9 +38,13 @@ export default function App() {
     useState(null);
   const scrollContainerRef = useRef(null);
 
-  // Loading state management
+  // Loading state
   const [isGameLoading, setIsGameLoading] = useState(true);
   const [loadingError, setLoadingError] = useState(null);
+
+  // Refs for instant access
+  const multiplierRef = useRef(1.0);
+  const currentLaneRef = useRef(0);
 
   // Handle loading state from GameArea
   const handleLoadingChange = useCallback(({ isLoading, loadingError }) => {
@@ -48,10 +66,9 @@ export default function App() {
 
   // Handle play/go button click
   const handlePlay = useCallback(() => {
-    // REQUIREMENT: Block input during death sequence (when gameState is "lost")
-    // Input is restored when handleResetComplete() is called after death sequence
-    if (gameState === "lost") {
-      return; // Block all input during death/reset - will be restored by handleResetComplete
+    // Block input during death sequence or at finish
+    if (gameState === "lost" || gameState === "atFinish") {
+      return;
     }
 
     if (gameState === "idle" || gameState === "won") {
@@ -61,12 +78,10 @@ export default function App() {
         return;
       }
 
-      // Reset game if coming from won state
       if (gameState === "won" && resetGameFn) {
         resetGameFn();
       }
 
-      // Hide any existing win notification
       const game = window.__GAME_INSTANCE__;
       if (game && game.hideWinNotification) {
         game.hideWinNotification();
@@ -74,93 +89,49 @@ export default function App() {
 
       setBalance((prev) => roundCurrency(prev - betAmount));
       setGameState("playing");
+      setCurrentMultiplier(1.0);
+      multiplierRef.current = 1.0;
 
-      // CRITICAL: Start the PixiJS game engine (enables car spawning & movement)
       if (game) {
         game.state = "playing";
       }
 
-      // Automatically jump to first road line when game starts
+      // Auto-jump to first lane
       if (jumpChickenFn) {
-        setTimeout(() => {
-          jumpChickenFn();
-        }, 100); // Small delay to ensure game state is updated
+        setTimeout(() => jumpChickenFn(), 100);
       }
     } else if (gameState === "playing") {
-      // Jump chicken (only when playing)
+      // Normal jump during gameplay
       if (jumpChickenFn) {
-        // Define win sequence callback to trigger automatically on finish line landing
-        const triggerWinSequence = () => {
-          // AUTOMATIC WIN SEQUENCE - triggered when chicken lands on finish line
-          // Step 1: Final coin already turned gold (before jump started)
-
-          // Step 2: Calculate winnings with proper rounding
-          if (getCurrentMultiplierFn) {
-            const multiplier = getCurrentMultiplierFn();
-            const winnings = roundCurrency(betAmount * multiplier);
-            const totalPayout = roundCurrency(betAmount + winnings); // Original bet + winnings
-
-            // Step 3: Update balance and lock controls immediately
-            setBalance((prev) => roundCurrency(prev + totalPayout));
-            setGameState("won");
-
-            // Step 4: Show win notification
-            const game = window.__GAME_INSTANCE__;
-            if (game && game.showWinNotification) {
-              game.showWinNotification(winnings, 3000); // 3 seconds for auto-win
-            }
-
-            // Step 5: Pause game systems (stop car spawning)
-            if (game) {
-              game.state = "idle"; // Stop car spawning during win sequence
-            }
-
-            // Step 6: Wait 3 seconds, then auto-reset to start position
-            setTimeout(() => {
-              if (resetGameFn) {
-                resetGameFn();
-              }
-              // Return to idle state to show PLAY button
-              setGameState("idle");
-            }, 3000); // 3-second victory display
-          }
-        };
-
-        // Jump with finish callback
-        jumpChickenFn(triggerWinSequence);
-        // Note: Win sequence now triggers automatically via callback, no manual trigger needed
+        jumpChickenFn();
       }
     }
-  }, [
-    gameState,
-    betAmount,
-    balance,
-    jumpChickenFn,
-    getCurrentMultiplierFn,
-    resetGameFn,
-  ]);
+  }, [gameState, betAmount, balance, jumpChickenFn, resetGameFn]);
 
   // Handle collision with car
-  // REQUIREMENT: Set gameState to "lost" to lock input during death sequence
-  // Death animation, timing, and reset are handled by game logic (decoupled)
   const handleCollision = useCallback(() => {
-    if (gameState !== "playing") return;
+    if (gameState !== "playing" && gameState !== "atFinish") return;
 
-    // REQUIREMENT: Set state to "lost" to immediately lock user input
     setGameState("lost");
-
-    // REQUIREMENT: Reset score (current run's "Golds") - NOT permanent balance/possessions
-
-    // Note: Death sequence (animation + delay + reset) is handled in game logic
-    // After reset completes, game will call onResetComplete to restore state
   }, [gameState]);
 
   // Handle reset complete - restore game state after death sequence
   const handleResetComplete = useCallback(() => {
-    // CRITICAL: Set gameState to "idle" to show Play button
-    // User must click Play to start a new game
     setGameState("idle");
+    setCurrentMultiplier(1.0);
+    multiplierRef.current = 1.0;
   }, []);
+
+  // Handle win complete - restore game state after win animation
+  const handleWinComplete = useCallback(() => {
+    if (resetGameFn) {
+      resetGameFn();
+    }
+
+    setGameState("idle");
+    setCurrentMultiplier(1.0);
+    multiplierRef.current = 1.0;
+  }, [resetGameFn]);
 
   // Register collision callback when game is ready
   useEffect(() => {
@@ -169,24 +140,52 @@ export default function App() {
     }
   }, [registerCollisionCallbackFn, handleCollision, handleResetComplete]);
 
-  // Update current multiplier in real-time while playing
-  // PERFORMANCE: Use requestAnimationFrame for smooth 60fps updates synced with render
+  // Listen for lane changes to detect finish line
   useEffect(() => {
-    if (gameState !== "playing" || !getCurrentMultiplierFn) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCurrentMultiplier(1.0);
+    if (gameState !== "playing") return;
+
+    const handleLaneChange = ({ laneIndex }) => {
+      const game = window.__GAME_INSTANCE__;
+      const totalLanes = game?.coinManager?.coins?.length || 0;
+
+      currentLaneRef.current = laneIndex;
+
+      // Check if reached finish line (beyond all coins)
+      if (laneIndex >= totalLanes) {
+        setGameState("atFinish");
+        gameEvents.emit("game:finished", {
+          laneIndex,
+          multiplier: multiplierRef.current,
+        });
+      }
+    };
+
+    const unsubscribe = gameEvents.on("lane:changed", handleLaneChange);
+    return () => unsubscribe();
+  }, [gameState]);
+
+  // Update current multiplier in real-time while playing
+  useEffect(() => {
+    if (gameState !== "playing" && gameState !== "atFinish") {
+      return;
+    }
+
+    if (!getCurrentMultiplierFn) {
       return;
     }
 
     let animationFrameId;
     let lastUpdateTime = 0;
-    const updateInterval = 100; // Update state max every 100ms to avoid excessive re-renders
+    const updateInterval = 100; // Update every 100ms
 
     const updateMultiplier = (timestamp) => {
-      // Throttle updates to every 100ms to prevent excessive React re-renders
       if (timestamp - lastUpdateTime >= updateInterval) {
         const multiplier = getCurrentMultiplierFn();
+
+        // Update both state (for UI) and ref (for instant access)
         setCurrentMultiplier(multiplier);
+        multiplierRef.current = multiplier;
+
         lastUpdateTime = timestamp;
       }
       animationFrameId = requestAnimationFrame(updateMultiplier);
@@ -201,51 +200,36 @@ export default function App() {
     };
   }, [gameState, getCurrentMultiplierFn]);
 
-  // Handle cashout button click
+  // Handle cashout - trigger win animation and payout
   const handleCashout = useCallback(() => {
-    if (gameState !== "playing") return;
+    if (gameState !== "atFinish") return;
 
-    // Turn current lane's coin to gold before cashing out
+    // Turn current lane's coin to gold
     if (finishCurrentLaneFn) {
       finishCurrentLaneFn();
     }
 
-    // Get current multiplier from game
-    const multiplier = getCurrentMultiplierFn ? getCurrentMultiplierFn() : 1.0;
-
-    // Calculate final price with proper rounding: bet amount * multiplier + original bet
+    // Calculate winnings using ref for instant value
+    const multiplier = multiplierRef.current;
     const winnings = roundCurrency(betAmount * multiplier);
-    const totalPayout = roundCurrency(winnings); // Return original bet + winnings
 
-    setBalance((prev) => roundCurrency(prev + totalPayout));
-    setGameState("won");
+    // Update balance
+    setBalance((prev) => roundCurrency(prev + winnings));
 
-    // Show win notification
+    // Show win notification animation
     const game = window.__GAME_INSTANCE__;
     if (game && game.showWinNotification) {
-      game.showWinNotification(winnings, 2000); // 2 seconds for manual cashout
+      game.showWinNotification(winnings, 3000);
     }
 
-    // Pause game systems (stop car spawning)
-    if (game) {
-      game.state = "idle"; // Stop car spawning during cashout
-    }
+    // Transition to won state
+    setGameState("won");
 
-    // Reset game after notification is visible (2-second delay for manual cashout)
-    if (resetGameFn) {
-      setTimeout(() => {
-        resetGameFn();
-        // Return to idle state to show PLAY button
-        setGameState("idle");
-      }, 2100); // Slightly longer than notification duration
-    }
-  }, [
-    gameState,
-    betAmount,
-    getCurrentMultiplierFn,
-    finishCurrentLaneFn,
-    resetGameFn,
-  ]);
+    // Reset to idle after win animation completes
+    setTimeout(() => {
+      handleWinComplete();
+    }, 3100); // Slightly longer than notification duration
+  }, [gameState, finishCurrentLaneFn, betAmount, handleWinComplete]);
 
   return (
     <div className="app-container">
@@ -271,9 +255,23 @@ export default function App() {
         onPlay={handlePlay}
         onCashout={handleCashout}
         gameState={gameState}
-        disabled={gameState === "playing"}
+        disabled={gameState === "playing" || gameState === "atFinish"}
         currentMultiplier={currentMultiplier}
+        goButtonDisabled={
+          gameState === "won" ||
+          gameState === "lost" ||
+          gameState === "atFinish"
+        }
+        cashoutButtonDisabled={gameState !== "atFinish"}
       />
+
+      {/* Hand indicator - points to GO during playing, CASHOUT at finish */}
+      {(gameState === "playing" || gameState === "atFinish") && (
+        <HandIndicator
+          targetButton={gameState === "atFinish" ? "CASHOUT" : "GO"}
+          visible={true}
+        />
+      )}
     </div>
   );
 }
