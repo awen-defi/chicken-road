@@ -106,13 +106,6 @@
   }
 }
 
-.menu-button svg {
-  width: 24px;
-  height: 24px;
-  margin-top: 3px;
-  cursor: pointer;
-}
-
 .how-to-play-modal {
   padding: 32px;
   background: rgb(84, 84, 84);

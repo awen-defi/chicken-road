@@ -3,6 +3,7 @@ import { DollarIcon } from "../DollarIcon";
 import { useRef } from "react";
 import { HowToPlayModal } from "./how-to-play-modal";
 import { LiveWinsTicker } from "../LiveWinsTicker";
+import { Menu } from "./menu";
 
 export function Header({ balance }) {
   const howToPlayModalRef = useRef(null);
@@ -103,43 +104,7 @@ export function Header({ balance }) {
           </svg>
         </div>
 
-        <div className="menu-button">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 18 18"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <line
-              x1="2"
-              y1="4.5"
-              x2="16"
-              y2="4.5"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-            <line
-              x1="2"
-              y1="9"
-              x2="16"
-              y2="9"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-            <line
-              x1="2"
-              y1="13.5"
-              x2="16"
-              y2="13.5"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-          </svg>
-        </div>
+        <Menu />
       </div>
 
       <HowToPlayModal ref={howToPlayModalRef} />
