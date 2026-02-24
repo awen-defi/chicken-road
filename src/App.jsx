@@ -8,6 +8,7 @@ import {
   HandIndicator,
 } from "./components";
 import { gameEvents } from "./game/core/GameEventBus.js";
+import { liveWinService } from "./services/LiveWinService.js";
 
 /**
  * Helper function to round currency to 2 decimal places
@@ -139,6 +140,17 @@ export default function App() {
       registerCollisionCallbackFn(handleCollision, handleResetComplete);
     }
   }, [registerCollisionCallbackFn, handleCollision, handleResetComplete]);
+
+  // Manage LiveWin service lifecycle
+  useEffect(() => {
+    // Start generating mock wins when component mounts
+    liveWinService.start();
+
+    // Cleanup: Stop service on unmount to prevent memory leaks
+    return () => {
+      liveWinService.stop();
+    };
+  }, []);
 
   // Listen for lane changes to detect finish line
   useEffect(() => {

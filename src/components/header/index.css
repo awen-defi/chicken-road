@@ -7,6 +7,7 @@
   touch-action: none;
   user-select: none;
   height: 49px;
+  position: relative;
 }
 
 .logo-container {

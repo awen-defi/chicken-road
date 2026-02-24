@@ -4,3 +4,4 @@ export { ControlPanel } from "./ControlPanel";
 export { DollarIcon } from "./DollarIcon";
 export { LoadingScreen } from "./LoadingScreen";
 export { HandIndicator } from "./HandIndicator";
+export { LiveWinsTicker } from "./LiveWinsTicker";

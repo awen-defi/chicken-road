@@ -2,6 +2,7 @@ import "./index.css";
 import { DollarIcon } from "../DollarIcon";
 import { useRef } from "react";
 import { HowToPlayModal } from "./how-to-play-modal";
+import { LiveWinsTicker } from "../LiveWinsTicker";
 
 export function Header({ balance }) {
   const howToPlayModalRef = useRef(null);
@@ -142,6 +143,7 @@ export function Header({ balance }) {
       </div>
 
       <HowToPlayModal ref={howToPlayModalRef} />
+      <LiveWinsTicker maxItems={8} />
     </div>
   );
 }
