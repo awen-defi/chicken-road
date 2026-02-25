@@ -25,7 +25,7 @@ export class Chicken extends BaseEntity {
     this.jumpEndX = x;
     this.jumpStartY = y;
     this.jumpProgress = 0;
-    this.jumpDuration = 0.4; // 400ms jump animation for smooth arc
+    this.jumpDuration = 0.7; // 700ms jump animation for smooth arc
     this.worldOffsetX = 0; // Track world offset for fixed chicken position
     this.minY = 50; // Minimum Y position to prevent going too high
     this.hasStartedJumpAnimation = false; // Track if animation has started
@@ -332,7 +332,7 @@ export class Chicken extends BaseEntity {
         if (this.spine && this.spine.state) {
           try {
             this.spine.state.setAnimation(0, "jump", false);
-            this.spine.state.timeScale = 2;
+            this.spine.state.timeScale = 1;
             this.currentAnimation = "jump";
           } catch {
             console.warn("Jump animation not found, falling back to walk");
