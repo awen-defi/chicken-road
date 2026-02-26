@@ -94,7 +94,7 @@ export default function App() {
       multiplierRef.current = 1.0;
 
       if (game) {
-        game.state = "playing";
+        game.setGameState("playing"); // Enable collisions when game starts
       }
 
       // Auto-jump to first lane

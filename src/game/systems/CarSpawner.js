@@ -61,6 +61,7 @@ export class CarSpawner {
     // Collision handling
     this.hasCollided = false;
     this.onCollision = null;
+    this.collisionsEnabled = false; // Start with collisions disabled (enabled when game starts)
 
     // Track chicken's current lane for dynamic safe zone
     this.chickenLaneIndex = 0;
@@ -216,6 +217,20 @@ export class CarSpawner {
 
     // Reset spawn timer to apply new settings immediately
     this.nextSpawnTime = this.getRandomSpawnInterval();
+  }
+
+  /**
+   * Enable collision detection (called when game starts)
+   */
+  enableCollisions() {
+    this.collisionsEnabled = true;
+  }
+
+  /**
+   * Disable collision detection (called when game is idle or ends)
+   */
+  disableCollisions() {
+    this.collisionsEnabled = false;
   }
 
   /**
@@ -467,9 +482,10 @@ export class CarSpawner {
         // REQUIREMENT: Car continues moving normally (even after collision)
         car.update(deltaTime);
 
-        // REQUIREMENT: Check collision ONLY if collision hasn't occurred yet
+        // REQUIREMENT: Check collision ONLY if collisions are enabled AND collision hasn't occurred yet
         // This prevents multiple collision triggers while allowing cars to continue moving
-        if (!this.hasCollided) {
+        // Collisions are disabled in idle state (before play button) and after first collision
+        if (this.collisionsEnabled && !this.hasCollided) {
           this.checkCarChickenCollision(car);
         }
       }
@@ -629,6 +645,7 @@ export class CarSpawner {
   reset() {
     // STEP 1: Stop collision checking IMMEDIATELY
     this.hasCollided = false;
+    this.collisionsEnabled = false; // Disable collisions until next game starts
 
     // STEP 2: AGGRESSIVE STAGE CLEANUP - Force removal of ALL cars
     const stage = this.entityManager?.stage;

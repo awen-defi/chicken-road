@@ -88,8 +88,13 @@ export class Game {
     }
 
     // CRITICAL: Start in "idle" state - wait for Play button
-    // Game loop will run but won't spawn cars or update systems until state = "playing"
+    // Game loop will run and cars will spawn/move, but collision detection is disabled
     this.state = "idle";
+
+    // Disable collisions in idle state (enabled when user clicks play)
+    if (this.carSpawner) {
+      this.carSpawner.disableCollisions();
+    }
 
     // PERFORMANCE: Remove existing callback first to prevent duplicate tickers (memory leak)
     // Use try-catch since ticker may not have callback registered
@@ -132,9 +137,31 @@ export class Game {
     }
     this.state = "idle";
 
+    // Disable collisions when resetting
+    if (this.carSpawner) {
+      this.carSpawner.disableCollisions();
+    }
+
     // Stop any active animations
     this.pulseAnimationActive = false;
     this.pulseAnimationTime = 0;
+  }
+
+  /**
+   * Set game state and handle collision detection accordingly
+   * @param {string} newState - The new game state (idle, playing, paused, gameover)
+   */
+  setGameState(newState) {
+    this.state = newState;
+
+    // Enable collisions only when playing
+    if (this.carSpawner) {
+      if (newState === "playing") {
+        this.carSpawner.enableCollisions();
+      } else {
+        this.carSpawner.disableCollisions();
+      }
+    }
   }
 
   /**
@@ -161,14 +188,11 @@ export class Game {
       this.entityManager.update(deltaTime);
     }
 
-    // Only update game systems when playing (car spawning, collision, coins, gates)
-    // During "idle": no cars spawn, no collision checks
-    // During "gameover": cars continue moving (no spawn/collision), coins/gates pause
-    if (this.state === "playing" || this.state === "gameover") {
-      // Update car spawner (cars maintain momentum during death animation)
-      if (this.carSpawner) {
-        this.carSpawner.update(deltaTime);
-      }
+    // Update car spawner in ALL states (idle, playing, gameover)
+    // Cars spawn and move even before play button is clicked
+    // Collision detection is controlled separately via collisionsEnabled flag
+    if (this.carSpawner) {
+      this.carSpawner.update(deltaTime);
     }
 
     // Coin and gate systems only update when playing

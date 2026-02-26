@@ -796,9 +796,9 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           }
 
           // STEP 5: RE-ENABLE INPUT & RESTORE GAME STATE TO IDLE
-          // CRITICAL: Set game to "idle" so it waits for Play button click
-          // This stops car spawning and movement until user starts new game
-          game.state = "idle";
+          // CRITICAL: Set game to "idle" and disable collisions
+          // Cars continue spawning and moving but collision detection is disabled
+          game.setGameState("idle");
 
           // Then, notify App.jsx to restore React gameState to "idle"
           // This shows the Play button and allows user to start a new game
