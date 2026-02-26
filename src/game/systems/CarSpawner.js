@@ -66,6 +66,11 @@ export class CarSpawner {
     // Track chicken's current lane for dynamic safe zone
     this.chickenLaneIndex = 0;
     this.initialSpawnComplete = false;
+
+    // First game forced loss mechanic
+    this.isFirstGame = false;
+    this.firstGameForcedLossActive = false;
+    this.blockedLaneForFirstGame = 2; // Lane 2 in CarSpawner = 3rd coin line (chicken lane 3)
   }
 
   /**
@@ -96,6 +101,37 @@ export class CarSpawner {
 
     // Pre-populate object pool
     this.initializePool();
+
+    // Check if this is the first game ever
+    this.checkFirstGame();
+  }
+
+  /**
+   * Check if this is the user's first game ever
+   */
+  checkFirstGame() {
+    try {
+      const hasPlayedBefore = sessionStorage.getItem("chicken_game_played");
+      this.isFirstGame = !hasPlayedBefore;
+      this.firstGameForcedLossActive = this.isFirstGame;
+    } catch {
+      // If sessionStorage fails, assume not first game
+      this.isFirstGame = false;
+      this.firstGameForcedLossActive = false;
+    }
+  }
+
+  /**
+   * Mark that the user has played the game
+   */
+  markGamePlayed() {
+    try {
+      sessionStorage.setItem("chicken_game_played", "true");
+      this.isFirstGame = false;
+      this.firstGameForcedLossActive = false;
+    } catch {
+      // Ignore sessionStorage errors
+    }
   }
 
   /**
@@ -224,6 +260,7 @@ export class CarSpawner {
    */
   enableCollisions() {
     this.collisionsEnabled = true;
+    console.log("✅ Collisions ENABLED");
   }
 
   /**
@@ -231,6 +268,103 @@ export class CarSpawner {
    */
   disableCollisions() {
     this.collisionsEnabled = false;
+    console.log("❌ Collisions DISABLED");
+  }
+
+  /**
+   * Force spawn a car on lane 3 to hit the chicken (first game mechanic)
+   * This is called when chicken jumps from lane 2 to lane 3 on their first game
+   */
+  forceSpawnForFirstGame() {
+    if (!this.firstGameForcedLossActive) return;
+    if (!this.chicken) return;
+
+    // CarSpawner lane 2 = 3rd coin line (chicken's lane 3)
+    // CarSpawner lanes are 0-indexed without sidewalk
+    const targetLane = this.blockedLaneForFirstGame; // CarSpawner lane 2 = 3rd coin line
+
+    // Get lane info
+    const lane = this.lanes[targetLane];
+    if (!lane) {
+      console.warn(`Lane ${targetLane} not found for forced spawn`);
+      return;
+    }
+
+    // Get the chicken's current Y position (where it starts the jump from lane 2)
+    const chickenCurrentY = this.chicken.container
+      ? this.chicken.container.position.y
+      : this.chicken.y;
+
+    // Spawn car directly on the target lane at the chicken's landing Y position
+    // We want the car to be positioned so it arrives at the chicken's landing spot at the same time
+    // Chicken jump takes ~400ms (0.4 seconds)
+    const jumpDuration = 0.4; // seconds
+
+    // Calculate how fast the car needs to move to guarantee a hit
+    // We'll use a very fast speed to ensure collision
+    const guaranteedSpeed = this.maxSpeed * 2.0; // Double max speed for guaranteed hit
+
+    // Spawn car above the chicken's current Y position
+    // Distance = speed * time, so we spawn the car at a distance that will take exactly jumpDuration to reach chicken
+    const distanceToTravel = guaranteedSpeed * jumpDuration;
+    const spawnY = chickenCurrentY - distanceToTravel;
+    const spawnX = lane.centerX; // Spawn on the exact lane center
+
+    // Get car from pool
+    const car = this.acquireCar();
+    if (!car || !car.container) {
+      console.warn("Failed to acquire car for forced spawn");
+      return;
+    }
+
+    // Get random car type
+    const carType = this.getRandomCarType();
+    const texture = this.pixiRenderer.getTexture(carType.imageKey);
+    if (!texture) {
+      console.warn(`Car texture not found: ${carType.imageKey}`);
+      return;
+    }
+
+    // Get gate for this lane (if any)
+    const laneGate = this.gateManager
+      ? this.gateManager.getGateForLane(lane.index)
+      : null;
+
+    // Reset car with forced configuration
+    car.reset(spawnX, spawnY, {
+      lane: lane.index,
+      speed: guaranteedSpeed,
+      carType: carType.type,
+      roadBottomY: this.roadY + this.roadHeight,
+      gate: laneGate,
+    });
+
+    car.setTexture(texture);
+
+    // Add to active cars
+    this.activeCars.push(car);
+
+    // Manually add to stage (critical for visibility)
+    if (this.entityManager && this.entityManager.stage && car.container) {
+      try {
+        // Set car z-index higher than coins (coins are at 100)
+        car.container.zIndex = 150;
+        this.entityManager.stage.addChild(car.container);
+
+        // Debug logging for first game
+        console.log("🚗 FORCED CAR SPAWNED (First Game)");
+        console.log("Lane:", lane.index, "(3rd coin line)");
+        console.log("Spawn position:", { x: spawnX, y: spawnY });
+        console.log("Speed:", guaranteedSpeed);
+        console.log("Chicken Y:", chickenCurrentY);
+        console.log("Distance to travel:", distanceToTravel);
+      } catch (e) {
+        console.warn("Failed to add forced car to stage:", e);
+      }
+    }
+
+    // Mark that first game forced loss has been triggered
+    this.markGamePlayed();
   }
 
   /**
@@ -319,6 +453,14 @@ export class CarSpawner {
     for (let i = 0; i < this.lanes.length; i++) {
       // REQUIREMENT: Only spawn on lanes ahead of chicken (exclude current lane and all behind it)
       if (i > this.chickenLaneIndex) {
+        // FIRST GAME MECHANIC: Also exclude lane 2 (3rd coin line) during first game until triggered
+        // Note: CarSpawner lanes are 0-indexed without sidewalk
+        if (
+          this.firstGameForcedLossActive &&
+          i === this.blockedLaneForFirstGame
+        ) {
+          continue; // Skip 3rd coin line on first game
+        }
         validLanes.push(i);
       }
     }
@@ -351,10 +493,20 @@ export class CarSpawner {
   /**
    * Spawn a car in a specific lane
    */
-  spawnCarInLane(laneIndex) {
+  spawnCarInLane(laneIndex, forceSpawnY = null) {
     // Guard against invalid state
     if (!this.pixiRenderer || !this.entityManager) return;
     if (laneIndex < 0 || laneIndex >= this.lanes.length) return;
+
+    // FIRST GAME MECHANIC: Block lane 2 (3rd coin line) spawns until chicken jumps from lane 2
+    // Note: CarSpawner lanes are 0-indexed without sidewalk, so lane 2 = 3rd coin line
+    if (
+      this.firstGameForcedLossActive &&
+      laneIndex === this.blockedLaneForFirstGame &&
+      !forceSpawnY
+    ) {
+      return; // Skip spawning on 3rd coin line during first game until forced
+    }
 
     // Don't spawn cars on lanes that have gates
     if (this.gateManager && this.gateManager.hasGateOnLane(laneIndex)) {
@@ -405,13 +557,14 @@ export class CarSpawner {
       return;
     }
 
-    // Spawn position: X at lane center, Y at top of canvas
+    // Spawn position: X at lane center, Y at top of canvas (or forced position)
     const spawnX = lane.centerX;
 
     // Spawn at the top of the visible canvas area (Y=0 or slightly above)
     // This ensures cars are visible as they enter the screen
     // regardless of where the road container is positioned
-    const spawnY = this.roadY - 100; // Spawn 100px above road top for smooth entry
+    // If forceSpawnY is provided (first game forced loss), use that instead
+    const spawnY = forceSpawnY !== null ? forceSpawnY : this.roadY - 100;
 
     // Get gate for this lane (if any)
     const laneGate = this.gateManager
@@ -543,17 +696,21 @@ export class CarSpawner {
    * 4. Only check for cars on chicken's current lane (efficiency)
    */
   checkCarChickenCollision(car) {
-    if (!this.chicken || !this.chicken.active || this.chicken.isJumping) {
+    if (!this.chicken || !this.chicken.active) {
       return;
     }
 
-    // Calculate chicken's current lane
-    const chickenLaneX = this.chicken.x - this.startX;
+    // Calculate chicken's current lane based on its world X position
+    // Note: Chicken's x is world coordinate, startX is road's start position
+    const chickenWorldX = this.chicken.x;
+    const chickenLaneX = chickenWorldX - this.startX;
     const chickenLaneIndex = Math.floor(chickenLaneX / this.laneWidth);
 
     // REQUIREMENT 1 & 4: Only check collision if car and chicken are on the same lane
-    if (car.lane !== chickenLaneIndex) {
-      return;
+    // Add tolerance of ±1 lane to handle edge cases near lane boundaries
+    const laneDiff = Math.abs(car.lane - chickenLaneIndex);
+    if (laneDiff > 1) {
+      return; // Not on same lane or adjacent lane
     }
 
     // CRITICAL FIX: Use PixiJS World Space bounds to avoid coordinate mismatch
@@ -584,33 +741,47 @@ export class CarSpawner {
     }
 
     // REQUIREMENT 2: Precise AABB collision detection (World Space)
+    // Add collision tolerance to make detection more forgiving
+    const collisionTolerance = 20; // pixels
+
     // Define edges based on direction:
     // Car moves downward: Front = Bottom, Back = Top
     const carFrontEdge = carWorldBounds.y + carWorldBounds.height; // Bottom of car
     const carBackEdge = carWorldBounds.y; // Top of car
 
-    // Chicken bounds
-    const chickenTopEdge = chickenWorldBounds.y;
-    const chickenBottomEdge = chickenWorldBounds.y + chickenWorldBounds.height;
+    // Chicken bounds with tolerance
+    const chickenTopEdge = chickenWorldBounds.y - collisionTolerance;
+    const chickenBottomEdge =
+      chickenWorldBounds.y + chickenWorldBounds.height + collisionTolerance;
+    const chickenLeftEdge = chickenWorldBounds.x - collisionTolerance;
+    const chickenRightEdge =
+      chickenWorldBounds.x + chickenWorldBounds.width + collisionTolerance;
 
-    // Horizontal overlap check (X-axis)
+    // Horizontal overlap check (X-axis) with tolerance
     const overlapsX =
-      carWorldBounds.x < chickenWorldBounds.x + chickenWorldBounds.width &&
-      carWorldBounds.x + carWorldBounds.width > chickenWorldBounds.x;
+      carWorldBounds.x < chickenRightEdge &&
+      carWorldBounds.x + carWorldBounds.width > chickenLeftEdge;
 
-    // REQUIREMENT: Precise vertical alignment (Y-axis)
-    // Vertical Alignment: car's front edge >= chicken's top edge
-    const verticalAlignment = carFrontEdge >= chickenTopEdge;
+    // Vertical overlap check (Y-axis)
+    // Collision if car and chicken overlap vertically
+    const overlapsY =
+      carFrontEdge >= chickenTopEdge && // Car's bottom is below chicken's top
+      carBackEdge <= chickenBottomEdge; // Car's top is above chicken's bottom
 
-    // Depth Alignment: car's back edge <= chicken's bottom edge
-    const depthAlignment = carBackEdge <= chickenBottomEdge;
-
-    // Collision occurs only if ALL conditions are met
-    if (overlapsX && verticalAlignment && depthAlignment) {
+    // Collision occurs only if BOTH X and Y overlap
+    if (overlapsX && overlapsY) {
       // REQUIREMENT: Set collision flag to prevent multiple triggers
       // CRITICAL: The car that caused collision continues moving (not stopped)
       // Car momentum is maintained - car.update() continues to be called
       this.hasCollided = true;
+
+      // Debug logging for first game
+      if (this.firstGameForcedLossActive) {
+        console.log("🚗 COLLISION DETECTED (First Game)");
+        console.log("Car lane:", car.lane, "Chicken lane:", chickenLaneIndex);
+        console.log("Car bounds:", carWorldBounds);
+        console.log("Chicken bounds:", chickenWorldBounds);
+      }
 
       if (this.onCollision) {
         this.onCollision();
@@ -646,6 +817,9 @@ export class CarSpawner {
     // STEP 1: Stop collision checking IMMEDIATELY
     this.hasCollided = false;
     this.collisionsEnabled = false; // Disable collisions until next game starts
+
+    // Reset first game mechanic
+    this.checkFirstGame();
 
     // STEP 2: AGGRESSIVE STAGE CLEANUP - Force removal of ALL cars
     const stage = this.entityManager?.stage;

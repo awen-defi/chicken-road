@@ -407,6 +407,16 @@ export function useGame(canvasRef, config, scrollContainerRef) {
       const nextLane = currentLane + 1;
       const isJumpingToFinish = nextLane >= totalLanes - 1; // Detect if jumping TO finish line
 
+      // FIRST GAME MECHANIC: Force spawn car on lane 3 when jumping from lane 2
+      // Lane 0 = sidewalk, Lane 1 = 1st line, Lane 2 = 2nd line, Lane 3 = 3rd line
+      // This creates a guaranteed collision on the player's first game at the 3rd line
+      if (currentLane === 2 && nextLane === 3 && game.carSpawner) {
+        console.log(
+          "🐔 Chicken jumping from lane 2 to lane 3 - triggering forced spawn",
+        );
+        game.carSpawner.forceSpawnForFirstGame();
+      }
+
       // If jumping to finish, hide tooltip and turn current coin gold IMMEDIATELY (before jump starts)
       if (isJumpingToFinish) {
         chicken.hideTooltip(); // Hide tooltip before jumping to finish
