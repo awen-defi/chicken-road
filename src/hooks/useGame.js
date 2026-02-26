@@ -119,6 +119,18 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           console.log("Light pole texture not available (optional)");
         }
 
+        // Load optional finish banner texture separately (decorative only)
+        let finishBannerTexture = null;
+        try {
+          const bannerResult = await game.renderer.loadTextures([
+            { key: "carpet", url: "/carpet.png" },
+          ]);
+          finishBannerTexture =
+            bannerResult["carpet"] || bannerResult["carpet"];
+        } catch {
+          console.log("Finish banner texture not available (optional)");
+        }
+
         // Load Spine animation for chicken with error handling
         let chickenKeys;
         try {
@@ -230,6 +242,19 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         );
         entityManager.addEntity(finishScenery);
         finishSceneryRef.current = finishScenery; // Store reference for updates
+
+        // Banner on finish sidewalk (static decoration)
+        if (finishBannerTexture) {
+          const bannerScale = sceneryScale; // 60% of scenery scale
+          const bannerSprite = new Sprite(finishBannerTexture);
+          bannerSprite.anchor.set(0.5, 1); // Center bottom anchor
+          bannerSprite.scale.set(bannerScale);
+          // Position on finish sidewalk
+          bannerSprite.x = startWidth + roadWidth + finishWidth * 0.45; // Center of finish sidewalk
+          bannerSprite.y = gameElementsCenterY - 70; // Slightly below chicken level
+          bannerSprite.zIndex = 10; // Above scenery but below coins
+          entityManager.stage.addChild(bannerSprite);
+        }
 
         // Chicken with Spine animation (positioned in middle for visual centering)
         const chickenX = startWidth - 160;
