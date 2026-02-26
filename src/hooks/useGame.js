@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { Sprite } from "pixi.js";
 import { Game } from "../game/core/Game.js";
 import { EntityManager } from "../game/managers/EntityManager.js";
 import { InputSystem } from "../game/systems/InputSystem.js";
@@ -107,6 +108,17 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           textures = {};
         }
 
+        // Load optional light pole texture separately (decorative only)
+        let poleTexture = null;
+        try {
+          const poleResult = await game.renderer.loadTextures([
+            { key: "light", url: "/light.png" },
+          ]);
+          poleTexture = poleResult.light || poleResult["light"];
+        } catch {
+          console.log("Light pole texture not available (optional)");
+        }
+
         // Load Spine animation for chicken with error handling
         let chickenKeys;
         try {
@@ -166,8 +178,8 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         const sceneryOffsetY = -600; // Scenery stays at current position
 
         // Calculate positions for game elements (chicken, coins, gates, road)
-        // Position chicken higher up on canvas for better visual centering
-        const gameElementsCenterY = totalHeight * 0.35; // Position in upper-middle area
+        // Position chicken in middle area
+        const gameElementsCenterY = totalHeight * 0.4; // Position in middle area (moved down)
         const roadY = gameElementsCenterY - roadHeight / 2; // Road aligned with chicken
 
         // Create entities with Pixi texture
@@ -181,6 +193,19 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           sceneryScale,
         );
         entityManager.addEntity(startScenery);
+
+        // Light pole on start sidewalk (static decoration)
+        if (poleTexture) {
+          const lightScale = sceneryScale * 0.4; // 60% of scenery scale
+          const lightSprite = new Sprite(poleTexture);
+          lightSprite.anchor.set(0.5, 1); // Center bottom anchor
+          lightSprite.scale.set(lightScale);
+          // Position on start sidewalk
+          lightSprite.x = startWidth * 0.8; // Center of start sidewalk
+          lightSprite.y = gameElementsCenterY - 200; // Slightly below chicken level
+          lightSprite.zIndex = 10; // Above scenery but below coins
+          entityManager.stage.addChild(lightSprite);
+        }
 
         // Road (positioned to align with chicken)
         const road = new Road(startWidth, roadY, {
@@ -206,9 +231,9 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         entityManager.addEntity(finishScenery);
         finishSceneryRef.current = finishScenery; // Store reference for updates
 
-        // Chicken with Spine animation (positioned in upper-middle for visual centering)
+        // Chicken with Spine animation (positioned in middle for visual centering)
         const chickenX = startWidth - 160;
-        const chickenY = gameElementsCenterY; // Chicken at visual center (upper-middle)
+        const chickenY = gameElementsCenterY; // Chicken at visual center (middle area)
 
         const chicken = new Chicken(chickenX, chickenY, {
           chickenSize: config.chickenSize,
