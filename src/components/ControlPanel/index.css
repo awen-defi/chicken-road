@@ -16,10 +16,11 @@
 .bet-section {
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
 }
 
 .slider-container {
-  padding: 8px;
+  padding: 12px;
   box-shadow: rgba(0, 0, 0, 0.25) 0px 2.99px 3.987px 0px;
   display: flex;
   align-items: center;
@@ -38,7 +39,7 @@
 }
 
 .slider-label {
-  padding: 4px 8px;
+  padding: 8px 12px;
   border-radius: 4px;
   background: rgb(101, 101, 101);
   font-size: 14px;
@@ -81,7 +82,7 @@
 .bet-button {
   box-shadow: rgba(0, 0, 0, 0.25) 0px 2.99px 3.987px 0px;
   border: 1px solid rgb(84, 84, 84);
-  padding: 8px;
+  padding: 12px;
   border-radius: 8px;
   font-size: 14px;
   display: flex;
