@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { HowToPlayModal } from "./how-to-play-modal";
 import { LiveWinsTicker } from "../LiveWinsTicker";
 import { Menu } from "./menu";
+import logoImg from "../../assets/logo.png";
 
 export function Header({ balance }) {
   const howToPlayModalRef = useRef(null);
@@ -52,7 +53,7 @@ export function Header({ balance }) {
   return (
     <div className="header">
       <div className="logo-container">
-        <img src="/logo.png" alt="Chicken Road" className="logo" />
+        <img src={logoImg} alt="Chicken Road" className="logo" />
       </div>
 
       <div className="header-actions">

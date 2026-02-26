@@ -3,6 +3,18 @@
  * Central configuration for all game parameters and settings
  */
 
+import startImg from "../assets/start.png";
+import finishImg from "../assets/finish.png";
+import lightImg from "../assets/light.png";
+import carpetImg from "../assets/carpet.png";
+import gateImg from "../assets/gate.png";
+import coinImg from "../assets/coin.png";
+import coinGoldImg from "../assets/coin-gold.png";
+import truckOrangeImg from "../assets/truck-orange.png";
+import truckBlueImg from "../assets/truck-blue.png";
+import carYellowImg from "../assets/car-yellow.png";
+import carPoliceImg from "../assets/car-police.png";
+
 /**
  * Core game configuration
  */
@@ -24,21 +36,21 @@ export const GAME_CONFIG = {
 
   // Asset paths
   assets: {
-    start: "/start.png",
-    finish: "/finish.png",
-    light: "/light.png",
-    carpet: "/carpet.png",
-    chicken: "/chicken.png",
-    gate: "/gate.png",
+    start: startImg,
+    finish: finishImg,
+    light: lightImg,
+    carpet: carpetImg,
+    chicken: "./chicken.png",
+    gate: gateImg,
     // Coin assets
-    coin: "/coin.png",
-    "coin-gold": "/coin-gold.png",
+    coin: coinImg,
+    "coin-gold": coinGoldImg,
     // Car assets
     cars: {
-      "truck-orange": "/truck-orange.png",
-      "truck-blue": "/truck-blue.png",
-      "car-yellow": "/car-yellow.png",
-      "car-police": "/car-police.png",
+      "truck-orange": truckOrangeImg,
+      "truck-blue": truckBlueImg,
+      "car-yellow": carYellowImg,
+      "car-police": carPoliceImg,
     },
   },
 

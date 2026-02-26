@@ -1,4 +1,14 @@
 import { gameEvents } from "../game/core/GameEventBus.js";
+import avatar1 from "../assets/avatar1.png";
+import avatar2 from "../assets/avatar2.png";
+import avatar3 from "../assets/avatar3.png";
+import nlFlag from "../assets/nl.svg";
+import inFlag from "../assets/in.svg";
+import tjFlag from "../assets/tj.svg";
+import tgFlag from "../assets/tg.svg";
+import uzFlag from "../assets/uz.svg";
+import siFlag from "../assets/si.svg";
+import kzFlag from "../assets/kz.svg";
 
 /**
  * LiveWinService - Social Proof Engine
@@ -12,18 +22,10 @@ class LiveWinService {
     this.winCounter = 0;
 
     // Avatar pool (3 provided PNG images)
-    this.avatars = ["/avatar1.png", "/avatar2.png", "/avatar3.png"];
+    this.avatars = [avatar1, avatar2, avatar3];
 
     // Flag pool (provided flags)
-    this.flags = [
-      "/nl.svg",
-      "/in.svg",
-      "/tj.svg",
-      "/tg.svg",
-      "/uz.svg",
-      "/si.svg",
-      "/kz.svg",
-    ];
+    this.flags = [nlFlag, inFlag, tjFlag, tgFlag, uzFlag, siFlag, kzFlag];
 
     // User name pool
     this.names = [

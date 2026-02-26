@@ -8,6 +8,19 @@ import { Road } from "../game/entities/Road.js";
 import { Scenery } from "../game/entities/Scenery.js";
 import { DIFFICULTY_SETTINGS } from "../config/gameConfig.js";
 import { gameEvents } from "../game/core/GameEventBus.js";
+import startImg from "../assets/start.png";
+import finishImg from "../assets/finish.png";
+import gateImg from "../assets/gate.png";
+import coinImg from "../assets/coin.png";
+import coinGoldImg from "../assets/coin-gold.png";
+import chickenTooltipImg from "../assets/chicken-tooltip.png";
+import winNotificationImg from "../assets/winNotification.png";
+import truckOrangeImg from "../assets/truck-orange.png";
+import truckBlueImg from "../assets/truck-blue.png";
+import carYellowImg from "../assets/car-yellow.png";
+import carPoliceImg from "../assets/car-police.png";
+import lightImg from "../assets/light.png";
+import carpetImg from "../assets/carpet.png";
 
 /**
  * useGame - Custom hook to manage game instance lifecycle with Pixi.js
@@ -85,22 +98,22 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         let textures;
         try {
           textures = await game.renderer.loadTextures([
-            { key: "start", url: "/start.png" },
-            { key: "finish", url: "/finish.png" },
+            { key: "start", url: startImg },
+            { key: "finish", url: finishImg },
             // Gate image
-            { key: "gate", url: "/gate.png" },
+            { key: "gate", url: gateImg },
             // Coin images
-            { key: "coin", url: "/coin.png" },
-            { key: "coin-gold", url: "/coin-gold.png" },
+            { key: "coin", url: coinImg },
+            { key: "coin-gold", url: coinGoldImg },
             // Chicken tooltip
-            { key: "chicken-tooltip", url: "/chicken-tooltip.png" },
+            { key: "chicken-tooltip", url: chickenTooltipImg },
             // Win notification
-            { key: "win-notification", url: "/winNotification.png" },
+            { key: "win-notification", url: winNotificationImg },
             // Car images
-            { key: "truck-orange", url: "/truck-orange.png" },
-            { key: "truck-blue", url: "/truck-blue.png" },
-            { key: "car-yellow", url: "/car-yellow.png" },
-            { key: "car-police", url: "/car-police.png" },
+            { key: "truck-orange", url: truckOrangeImg },
+            { key: "truck-blue", url: truckBlueImg },
+            { key: "car-yellow", url: carYellowImg },
+            { key: "car-police", url: carPoliceImg },
           ]);
         } catch (error) {
           console.error("Failed to load textures:", error);
@@ -112,7 +125,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         let poleTexture = null;
         try {
           const poleResult = await game.renderer.loadTextures([
-            { key: "light", url: "/light.png" },
+            { key: "light", url: lightImg },
           ]);
           poleTexture = poleResult.light || poleResult["light"];
         } catch {
@@ -123,7 +136,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         let finishBannerTexture = null;
         try {
           const bannerResult = await game.renderer.loadTextures([
-            { key: "carpet", url: "/carpet.png" },
+            { key: "carpet", url: carpetImg },
           ]);
           finishBannerTexture =
             bannerResult["carpet"] || bannerResult["carpet"];
@@ -136,8 +149,8 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         try {
           chickenKeys = await game.renderer.loadSpineAnimation(
             "chicken",
-            "/chicken.json",
-            "/chicken.atlas",
+            "./chicken.json",
+            "./chicken.atlas",
           );
         } catch (error) {
           console.error("Failed to load chicken animation:", error);
