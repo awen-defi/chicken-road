@@ -21,8 +21,8 @@ export class CarSpawner {
 
     // Difficulty-based spawn timing (defaults to Easy)
     this.currentDifficulty = "Easy";
-    this.baseMinSpeed = 200; // Base speed (px/s)
-    this.baseMaxSpeed = 450; // Base speed (px/s)
+    this.baseMinSpeed = 1500; // Base speed (px/s)
+    this.baseMaxSpeed = 2000; // Base speed (px/s)
     this.speedMultiplier = 1.0;
     this.minSpeed = this.baseMinSpeed * this.speedMultiplier;
     this.maxSpeed = this.baseMaxSpeed * this.speedMultiplier;

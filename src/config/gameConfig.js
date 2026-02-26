@@ -44,8 +44,8 @@ export const GAME_CONFIG = {
   carSpawner: {
     minSpawnInterval: 0.15, // Halved to compensate for 2x speed (0.3 / 2)
     maxSpawnInterval: 0.6, // Halved to compensate for 2x speed (1.2 / 2)
-    minSpeed: 400, // Increased by 2.0x (200 * 2)
-    maxSpeed: 900, // Increased by 2.0x (450 * 2)
+    minSpeed: 1500, // Increased by 4.0x from previous (400 * 4)
+    maxSpeed: 2000, // Increased by 4.0x from previous (900 * 4)
     poolSize: 30, // Larger pool for more simultaneous cars
   },
 };
@@ -66,8 +66,8 @@ export const DIFFICULTY_SETTINGS = {
     // Car spawn settings
     carSpawn: {
       speedMultiplier: 1.0,
-      minSpawnDelay: 700, // ms
-      maxSpawnDelay: 1200, // ms
+      minSpawnDelay: 350, // ms - reduced by 50% for more frequent spawns
+      maxSpawnDelay: 600, // ms - reduced by 50% for more frequent spawns
     },
   },
   Medium: {
@@ -81,9 +81,9 @@ export const DIFFICULTY_SETTINGS = {
     ],
     // Car spawn settings
     carSpawn: {
-      speedMultiplier: 1.5,
-      minSpawnDelay: 500, // ms
-      maxSpawnDelay: 1000, // ms
+      speedMultiplier: 1.1,
+      minSpawnDelay: 300, // ms - reduced by 50% for more frequent spawns
+      maxSpawnDelay: 550, // ms - reduced by 50% for more frequent spawns
     },
   },
   Hard: {
@@ -97,9 +97,9 @@ export const DIFFICULTY_SETTINGS = {
     ],
     // Car spawn settings
     carSpawn: {
-      speedMultiplier: 2,
-      minSpawnDelay: 400, // ms
-      maxSpawnDelay: 800, // ms
+      speedMultiplier: 1.2,
+      minSpawnDelay: 250, // ms - reduced by 50% for more frequent spawns
+      maxSpawnDelay: 400, // ms - reduced by 50% for more frequent spawns
     },
   },
   Hardcore: {
@@ -112,9 +112,9 @@ export const DIFFICULTY_SETTINGS = {
     ],
     // Car spawn settings
     carSpawn: {
-      speedMultiplier: 2.5,
-      minSpawnDelay: 300, // ms
-      maxSpawnDelay: 600, // ms
+      speedMultiplier: 1.5,
+      minSpawnDelay: 150, // ms - reduced by 50% for more frequent spawns
+      maxSpawnDelay: 300, // ms - reduced by 50% for more frequent spawns
     },
   },
 };

@@ -14,7 +14,7 @@ export class Car extends BaseEntity {
 
     this.config = config;
     this.lane = config.lane || 0;
-    this.speed = config.speed || 200; // pixels per second (moving down)
+    this.speed = config.speed || 1500; // pixels per second (moving down)
     this.carType = config.carType || "truck"; // truck, car, etc.
     this.roadBottomY = config.roadBottomY || 1000; // Bottom boundary for offscreen detection
     this.gate = config.gate || null; // Gate reference for stopping
@@ -70,7 +70,7 @@ export class Car extends BaseEntity {
     this.x = x;
     this.y = y;
     this.lane = config.lane || 0;
-    this.speed = config.speed || 200;
+    this.speed = config.speed || 1500;
     this.carType = config.carType || "truck";
     this.roadBottomY = config.roadBottomY || 1000;
     this.gate = config.gate || null;
