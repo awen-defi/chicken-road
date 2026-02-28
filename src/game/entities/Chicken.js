@@ -350,21 +350,11 @@ export class Chicken extends BaseEntity {
         // Update internal world position
         this.x = this.jumpEndX;
 
-        // Update visual position
-        // When moving world, chicken stays at fixed viewport position
-        // When NOT moving world, chicken moves normally across screen
-        if (!this.shouldMoveWorld) {
-          this.container.position.x = this.x;
-        } else if (this.fixedViewportX !== null) {
-          this.container.position.x = this.fixedViewportX;
-        }
-
-        // NOTE: World position (stage.x) is handled by PixiRenderer.updateCamera()
-        // which runs every frame. We do NOT manipulate stage.x here.
-
-        // Reset Y position to ground level
+        // Update container position to match world position
+        // Atomic camera handles screen positioning automatically
+        this.container.position.x = this.x;
+        this.container.position.y = this.jumpStartY;
         this.y = this.jumpStartY;
-        this.container.position.y = this.y;
 
         // Ensure container visibility
         this.container.visible = true;
@@ -386,24 +376,10 @@ export class Chicken extends BaseEntity {
         this.x =
           this.jumpStartX + (this.jumpEndX - this.jumpStartX) * easeProgress;
 
-        // ━━━ SCREEN POSITION: Where chicken appears on screen ━━━
-        if (!this.shouldMoveWorld) {
-          // Normal mode: chicken moves horizontally across screen
-          this.container.position.x = this.x;
-        } else {
-          // World-scroll mode: chicken fixed at anchor point (10% from left)
-          // Camera automatically scrolls world based on chicken.x
-          if (this.fixedViewportX !== null) {
-            this.container.position.x = this.fixedViewportX;
-          }
-        }
-
-        // NOTE: We do NOT touch stage.x here. The camera (PixiRenderer.updateCamera)
-        // calculates worldContainer.x every frame based on this.x.
-        // This is the "atomic mirror" - chicken.x drives camera.x automatically.
-
-        // Vertical movement - no arc, keep at ground level
-        this.y = this.jumpStartY;
+        // ━━━ CONTAINER POSITION: Always set to world position ━━━
+        // The atomic camera (PixiRenderer.updateCamera) handles screen positioning
+        // by moving worldContainer.x to keep chicken at 10% from left
+        this.container.position.x = this.x;
         this.container.position.y = this.y;
 
         // Ensure container remains visible during jump

@@ -528,35 +528,26 @@ export function useGame(canvasRef, config, scrollContainerRef) {
   const updateCameraOnResize = useCallback(() => {
     const game = gameRef.current;
     const chicken = chickenRef.current;
-    const currentLane = currentLaneRef.current;
 
-    if (!game || !chicken || currentLane < 1 || !scrollContainerRef?.current) {
-      return; // Only adjust if game is active and in world-move mode
+    if (!game || !chicken || !scrollContainerRef?.current) {
+      return;
     }
-
-    const stage = game.renderer?.app?.stage;
-    if (!stage) return;
 
     const container = scrollContainerRef.current;
     const containerWidth = container.clientWidth;
-    const canvasWidth = canvasWidthRef.current;
+    const containerHeight = container.clientHeight;
 
-    // Use the same discrete grid formula
-    const { worldX, chickenScreenX } = calculateWorldPosition(
-      currentLane,
-      containerWidth,
-      canvasWidth,
-    );
+    // Update viewport dimensions - this triggers atomic camera recalculation
+    // The atomic camera (PixiRenderer.updateCamera) will automatically:
+    // 1. Read chicken.x (world position)
+    // 2. Calculate worldContainer.x to keep chicken at 10% from left
+    // 3. Apply finish-line clamping if needed
+    game.updateViewport(containerWidth, containerHeight);
 
-    // Update chicken's screen position
-    if (chicken.container) {
-      chicken.container.position.x = chickenScreenX;
-      chicken.fixedViewportX = chickenScreenX;
-    }
-
-    // Apply world position
-    stage.x = worldX;
-  }, [scrollContainerRef, calculateWorldPosition]);
+    // Update fixedViewportX for reference (used in jumpTo logic)
+    const chickenScreenX = containerWidth * 0.1; // 10% from left
+    chicken.fixedViewportX = chickenScreenX;
+  }, [scrollContainerRef]);
 
   // Watch for container resizes and update camera position
   useEffect(() => {
