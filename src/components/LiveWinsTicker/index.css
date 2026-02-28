@@ -67,7 +67,7 @@
 .SignalPulse {
   position: absolute;
   width: 14px;
-  height: 15px;
+  height: 14px;
   mask-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAANCAYAAACdKY9CAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAADwSURBVHgBjZHNSsNAEMdnZrPZuEqJ1A+ad/BdqtCj4smnEhHprZfSx/EBEgVtSj+23WQ32+TQEHpo93+agd9vGGYQOhm5EdN/Wgayd9X0VRFsp9efiy6Dh+LRPd8FG5YAOtYFwGFRVlU67X39t8KTexswpRM4ESFtOsZxhvUaISj5AB7RKv8mtrtMwDMUyD5ZW8S+AudRTICc+QrNQQhcab0Fh5Ysg9yXL0tYkFlHc1+Bx5uUZrcfK61Ydg6u/5RNcFK0nx4uX/pCuEFlSHRB4tZs8+hndv/+2/R4PGmYv8YUmoumNipci5uVqie3h9kDvpZZGJoymBsAAAAASUVORK5CYII=);
   mask-repeat: no-repeat;
   mask-position: center center;
@@ -84,7 +84,7 @@
   mask-repeat: no-repeat;
   mask-position: center center;
   background-color: rgb(83, 243, 94);
-  width: 15px;
+  width: 14px;
   height: 14px;
   position: absolute;
 }

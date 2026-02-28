@@ -160,15 +160,14 @@ function DifficultyLevelSelect({ level, setDifficulty }) {
     }
   };
 
-  const handleOptionClick = (diff) => {
+  const handleOptionClick = (e, diff) => {
+    e.stopPropagation();
     if (diff === level) {
       return;
     }
 
+    dialogRef.current.close();
     setDifficulty(diff);
-    if (dialogRef.current) {
-      dialogRef.current.close();
-    }
   };
 
   const handleClose = () => {
@@ -191,7 +190,7 @@ function DifficultyLevelSelect({ level, setDifficulty }) {
             <div
               key={diff}
               className="difficulty-level-option"
-              onClick={() => handleOptionClick(diff)}
+              onClick={(e) => handleOptionClick(e, diff)}
             >
               {diff}
               {diff === level && (

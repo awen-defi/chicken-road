@@ -404,11 +404,21 @@ export class Game {
     }
 
     // Calculate adaptive scale based on viewport size
-    // Scale down for small screens (mobile), keep normal for large screens
+    // Make popup smaller for all screens, extra small for mobile
     const baseWidth = 800; // Reference width for normal scale
     const scaleX = Math.min(1, viewportWidth / baseWidth);
     const scaleY = Math.min(1, viewportHeight / 600); // Reference height
-    const adaptiveScale = Math.min(scaleX, scaleY) * 0.8; // 0.8 = slightly smaller for better fit
+
+    // Base scale: 0.5 (smaller for all screens)
+    // Extra reduction for small screens (< 600px width)
+    let sizeMultiplier = 0.5; // 50% of original size
+    if (viewportWidth < 600) {
+      sizeMultiplier = 0.25; // 35% for small screens
+    } else if (viewportWidth < 900) {
+      sizeMultiplier = 0.3; // 45% for medium screens
+    }
+
+    const adaptiveScale = Math.min(scaleX, scaleY) * sizeMultiplier;
 
     // Apply adaptive scale to the entire display
     this.winDisplay.scale.set(adaptiveScale);
@@ -416,10 +426,10 @@ export class Game {
     // Get current stage offset (world scrolling)
     const stageX = this.renderer.app.stage.x || 0;
 
-    // Position at center of visible viewport, compensating for stage scroll
-    // The notification should appear at the center of what the user can see
+    // Position at center horizontally, and 30% from top vertically (fully inside canvas)
+    // This ensures popup is well within the visible area
     this.winDisplay.position.x = -stageX + viewportWidth / 2;
-    this.winDisplay.position.y = 100 * adaptiveScale; // Scale top position too
+    this.winDisplay.position.y = viewportHeight * 0.2; // 20% from top (lower than before)
 
     // Position texts within the notification sprite (vertically stacked)
     if (
