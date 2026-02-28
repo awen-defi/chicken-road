@@ -85,7 +85,7 @@ export class CoinManager {
         this.entityManager.stage.addChild(coin.container);
         // Ensure coin is visible
         coin.container.visible = true;
-        coin.container.zIndex = 100; // High z-index to ensure coins are on top
+        coin.container.zIndex = 80; // Above chicken (80) to ensure coins are always visible
       }
 
       this.coins.push(coin);

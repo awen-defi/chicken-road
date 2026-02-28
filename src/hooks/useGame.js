@@ -951,6 +951,9 @@ export function useGame(canvasRef, config, scrollContainerRef) {
                 console.warn("Could not reset chicken animation:", e);
               }
             }
+
+            // Hide tooltip when chicken is at start position
+            chicken.hideTooltip();
           }
 
           // STEP 3: RESET CAMERA/SCENE VIEW TO STARTING STATE
