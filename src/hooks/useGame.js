@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Sprite } from "pixi.js";
+import { Sprite, Rectangle } from "pixi.js";
 import { Game } from "../game/core/Game.js";
 import { EntityManager } from "../game/managers/EntityManager.js";
 import { InputSystem } from "../game/systems/InputSystem.js";
@@ -188,7 +188,10 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         const sceneryScale = 1.1; // Increased by 1.2x from previous 0.84 (0.84 * 1.2)
 
         // Calculate layout using scaled texture dimensions
-        const startWidth = startTexture.width * sceneryScale;
+        // Start image: show right portion (clip some from left side)
+        const startTextureWidth = startTexture.width;
+        const startClipWidth = startTextureWidth * 0.7; // Use right 70% of image
+        const startWidth = startClipWidth * sceneryScale; // Scaled width after clipping
         const startHeight = startTexture.height * sceneryScale;
         const finishWidth = finishTexture.width * sceneryScale;
         const finishHeight = finishTexture.height * sceneryScale;
@@ -226,13 +229,20 @@ export function useGame(canvasRef, config, scrollContainerRef) {
 
         // Create entities with Pixi texture
 
-        // Start scenery (aligned with road for perfect edge matching)
+        // Start scenery (show right 70% - clip left 30%)
+        const startClipRect = new Rectangle(
+          startTextureWidth * 0.3, // Start from 30% position (clip left 30%)
+          0, // Top
+          startClipWidth, // Right 70% width
+          startTexture.height, // Full height
+        );
         const startScenery = new Scenery(
           0,
           sceneryY,
           "start",
           startTexture,
           sceneryScale,
+          startClipRect, // Clip to show right 70%
         );
         entityManager.addEntity(startScenery);
 
@@ -242,8 +252,8 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           const lightSprite = new Sprite(poleTexture);
           lightSprite.anchor.set(0.5, 1); // Center bottom anchor
           lightSprite.scale.set(lightScale);
-          // Position on start sidewalk
-          lightSprite.x = startWidth * 0.8; // Center of start sidewalk
+          // Position on start sidewalk (adjusted for clipped start image)
+          lightSprite.x = startWidth * 0.7; // Adjusted for 70% width start area
           lightSprite.y = gameElementsCenterY - 200; // Slightly below chicken level
           lightSprite.zIndex = 10; // Above scenery but below coins
           entityManager.stage.addChild(lightSprite);
@@ -286,8 +296,8 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           entityManager.stage.addChild(bannerSprite);
         }
 
-        // Chicken with Spine animation (positioned in middle for visual centering)
-        const chickenX = startWidth - 160;
+        // Chicken with Spine animation (positioned more to the left after start image clipping)
+        const chickenX = startWidth - 220; // Positioned further left in start area
         const chickenY = gameElementsCenterY; // Chicken at visual center (middle area)
 
         const chicken = new Chicken(chickenX, chickenY, {
