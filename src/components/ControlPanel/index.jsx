@@ -50,16 +50,16 @@ export function ControlPanel({
     <div className="control-panel">
       <div className="control-panel-content">
         {/* Bet Amount and Slider Section */}
-        <div className="bet-section">
-          <div className="slider-container">
+        <div className={`bet-section ${disabled ? "disabled" : ""}`}>
+          <div className="slider-container" disabled={disabled}>
             <button
               className="slider-label"
-              onClick={() => !disabled && handleSliderChange(1)}
+              onClick={() => !disabled && handleSliderChange(0.01)}
               disabled={disabled}
             >
               MIN
             </button>
-            <div className="slider-value">{sliderValue.toFixed(1)}</div>
+            <div className="slider-value">{sliderValue}</div>
             <button
               className="slider-label"
               onClick={() => !disabled && handleSliderChange(200)}
@@ -89,7 +89,7 @@ export function ControlPanel({
             <span>Difficulty</span>
             <span className="chance">Chance of being shot down</span>
           </div>
-          <div className="difficulty-buttons">
+          <div className={`difficulty-buttons ${disabled ? "disabled" : ""}`}>
             {DIFFICULTY_LEVELS.map((level) => (
               <span
                 key={level}

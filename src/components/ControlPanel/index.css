@@ -22,6 +22,12 @@
   gap: 1.2rem;
 }
 
+.bet-section.disabled,
+.bet-section.disabled * {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 .slider-container {
   padding: 1.2rem;
   box-shadow: rgba(0, 0, 0, 0.25) 0 0.299rem 0.3987rem 0;
@@ -35,10 +41,9 @@
   transition: border 0.2s ease-in-out;
 }
 
-.slider-container:hover {
+.slider-container:not([disabled]):hover {
   color: rgb(255, 255, 255);
   border: 0.1rem solid rgba(255, 255, 255, 0.1);
-  cursor: pointer;
 }
 
 .slider-label {
@@ -61,7 +66,7 @@
   transition: all 0.1s;
 }
 
-.slider-label:hover {
+.slider-label:not([disabled]):hover {
   background: rgba(255, 255, 255, 0.15);
 }
 
@@ -103,7 +108,7 @@
   transition: all 0.1s;
 }
 
-.bet-button:hover {
+.bet-button:not([disabled]):hover {
   background: rgba(255, 255, 255, 0.15);
   box-shadow: rgba(0, 0, 0, 0.25) 0 0.299rem 0.3987rem 0;
 }
@@ -152,6 +157,12 @@
   padding: 0.4rem;
 }
 
+.difficulty-buttons.disabled,
+.difficulty-buttons.disabled * {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .difficulty-button {
   width: calc(25% - 0.8rem);
   z-index: 1;
@@ -167,7 +178,7 @@
   padding: 0.8rem;
 }
 
-.difficulty-button:hover,
+.difficulty-button:not([disabled]):hover,
 .difficulty-button.active {
   background: rgb(101, 101, 101);
   color: rgb(255, 255, 255);
