@@ -277,10 +277,10 @@ export class Chicken extends BaseEntity {
   }
 
   /**
-   * Jump to a target X position with vertical arc
+   * Jump to a target X position
    * @param {number} targetX - Target world X position
-   * @param {boolean} shouldMoveWorld - If true, world moves instead of chicken after lane 2
-   * @param {Object} worldAnimationData - Data for world movement animation {stage, startOffset, endOffset, fixedViewportX}
+   * @param {boolean} shouldMoveWorld - If true, chicken stays fixed on screen (world scrolls)
+   * @param {Object} worldAnimationData - Not used anymore (camera is atomic)
    * @param {Function} onComplete - Optional callback to trigger when landing completes
    */
   jumpTo(
@@ -300,18 +300,10 @@ export class Chicken extends BaseEntity {
     this.hasStartedJumpAnimation = false; // Reset animation flag
     this.onJumpComplete = onComplete; // Store callback
 
-    // Set up world movement animation if needed
+    // For world-move mode, calculate fixed viewport position
     if (shouldMoveWorld && worldAnimationData) {
-      this.stage = worldAnimationData.stage;
-      this.startWorldOffset = worldAnimationData.startOffset;
-      this.endWorldOffset = worldAnimationData.endOffset;
-      this.maxWorldOffset = worldAnimationData.maxWorldOffset || Infinity;
       this.fixedViewportX = worldAnimationData.fixedViewportX;
     } else {
-      this.stage = null;
-      this.startWorldOffset = 0;
-      this.endWorldOffset = 0;
-      this.maxWorldOffset = 0;
       this.fixedViewportX = null;
     }
   }
@@ -358,24 +350,17 @@ export class Chicken extends BaseEntity {
         // Update internal world position
         this.x = this.jumpEndX;
 
-        // Update visual position only if not moving world
+        // Update visual position
         // When moving world, chicken stays at fixed viewport position
+        // When NOT moving world, chicken moves normally across screen
         if (!this.shouldMoveWorld) {
           this.container.position.x = this.x;
         } else if (this.fixedViewportX !== null) {
-          // Ensure chicken stays at fixed position
           this.container.position.x = this.fixedViewportX;
         }
 
-        // Finalize world position if animating
-        if (this.shouldMoveWorld && this.stage) {
-          // Clamp to valid range
-          const clampedOffset = Math.max(
-            0,
-            Math.min(this.endWorldOffset, this.maxWorldOffset),
-          );
-          this.stage.x = -clampedOffset;
-        }
+        // NOTE: World position (stage.x) is handled by PixiRenderer.updateCamera()
+        // which runs every frame. We do NOT manipulate stage.x here.
 
         // Reset Y position to ground level
         this.y = this.jumpStartY;
@@ -395,33 +380,27 @@ export class Chicken extends BaseEntity {
         // Interpolate position with easing
         const easeProgress = this.easeInOutQuad(this.jumpProgress);
 
-        // Update internal world position
+        // ━━━ ATOMIC UPDATE: Update chicken's world X position ━━━
+        // This is the ONLY place that changes chicken.x during a jump
+        // The camera (PixiRenderer.updateCamera) reads this.x every frame
         this.x =
           this.jumpStartX + (this.jumpEndX - this.jumpStartX) * easeProgress;
 
-        // Horizontal position handling
+        // ━━━ SCREEN POSITION: Where chicken appears on screen ━━━
         if (!this.shouldMoveWorld) {
-          // Normal mode: chicken moves horizontally
+          // Normal mode: chicken moves horizontally across screen
           this.container.position.x = this.x;
         } else {
-          // World movement mode: chicken stays fixed, world moves
+          // World-scroll mode: chicken fixed at anchor point (10% from left)
+          // Camera automatically scrolls world based on chicken.x
           if (this.fixedViewportX !== null) {
             this.container.position.x = this.fixedViewportX;
           }
-
-          // Animate world/stage offset smoothly
-          if (this.stage) {
-            const currentWorldOffset =
-              this.startWorldOffset +
-              (this.endWorldOffset - this.startWorldOffset) * easeProgress;
-            // Clamp to valid range to prevent black space
-            const clampedOffset = Math.max(
-              0,
-              Math.min(currentWorldOffset, this.maxWorldOffset),
-            );
-            this.stage.x = -clampedOffset;
-          }
         }
+
+        // NOTE: We do NOT touch stage.x here. The camera (PixiRenderer.updateCamera)
+        // calculates worldContainer.x every frame based on this.x.
+        // This is the "atomic mirror" - chicken.x drives camera.x automatically.
 
         // Vertical movement - no arc, keep at ground level
         this.y = this.jumpStartY;

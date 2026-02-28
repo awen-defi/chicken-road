@@ -51,9 +51,13 @@ export class PixiRenderer {
     this.viewportWidth = 0;
     this.viewportHeight = 0;
 
+    // World dimensions for finish-line clamping
+    this.worldWidth = 0; // Total logical world width (set by game)
+
     // Camera follow target (typically the chicken)
     this.cameraTarget = null;
     this.cameraOffsetY = 0; // Vertical offset for centering
+    this.chickenScreenAnchor = 0.1; // Chicken fixed at 10% from left when world scrolls
 
     // Configuration with optimal defaults
     this.config = {
@@ -305,6 +309,14 @@ export class PixiRenderer {
   }
 
   /**
+   * Set world dimensions for finish-line clamping
+   * Must be called after world is created
+   */
+  setWorldDimensions(worldWidth) {
+    this.worldWidth = worldWidth;
+  }
+
+  /**
    * Resize renderer - sets canvas internal rendering resolution
    * This is the actual size the game renders at (can be large)
    */
@@ -367,12 +379,13 @@ export class PixiRenderer {
   }
 
   /**
-   * FRAME-PERFECT CAMERA UPDATE (Hard-Locked Vertical Tracking)
-   * Called EVERY FRAME in the game ticker
+   * ATOMIC CAMERA UPDATE (Both X and Y Axis)
+   * Called EVERY FRAME in the game ticker + on resize
    * CRITICAL: No interpolation, no smoothing - direct mathematical binding
    *
-   * Math: worldContainer.y = verticalFocalPoint - (chicken.y * scale)
-   * This ensures chicken's screen position is EXACTLY at verticalFocalPoint regardless of its logical Y
+   * The world is a MIRROR of the chicken's visual progress:
+   * - Y-axis: worldContainer.y = verticalFocalPoint - (chicken.y * scale)
+   * - X-axis: worldContainer.x = chickenScreenX - (chicken.x * scale)
    */
   updateCamera() {
     if (!this.worldContainer || !this.cameraTarget) return;
@@ -381,23 +394,27 @@ export class PixiRenderer {
     // This prevents NaN or 0 values during initialization
     if (this.viewportHeight <= 0 || this.currentScale <= 0) return;
 
-    // HARD-LOCK: Chicken positioned at vertical focal point (55% = slightly below center)
-    // No lerp, no smoothing, no tweens - pure mathematical lock
+    // ━━━ Y-AXIS (VERTICAL): Hard-locked at 55% from top ━━━
     const verticalFocalPoint = this.viewportHeight * this.VERTICAL_FOCAL_POINT;
-
-    // Calculate chicken's scaled position in world space
-    // The scale MUST be the current scale (updated by updateViewport)
     const chickenScaledY = this.cameraTarget.y * this.currentScale;
-
-    // INVERSE TRANSFORM: Move world container opposite to chicken movement
-    // When chicken moves UP (+Y in logical space), world moves DOWN (-Y in screen space)
-    // This creates the illusion of camera following
-    //
-    // DIRECT SLAVE BINDING (No Interpolation):
-    // Camera position = f(chicken.y, currentScale) - computed every single frame
-    // NO lerp, NO smoothing, NO deltaTime - chicken and camera move as ONE unit
     this.worldContainer.y =
       verticalFocalPoint - chickenScaledY + this.cameraOffsetY;
+
+    // ━━━ X-AXIS (HORIZONTAL): Atomic mirror of chicken position ━━━
+    // The chicken's world X directly determines the camera X
+    // No separate animation - this runs EVERY FRAME
+    const chickenScreenX = this.viewportWidth * this.chickenScreenAnchor; // 10% from left
+    const chickenScaledX = this.cameraTarget.x * this.currentScale;
+    const rawTargetX = chickenScreenX - chickenScaledX;
+
+    // ━━━ FINISH LINE CLAMP: Prevents empty space beyond finish ━━━
+    // When world edge reaches viewport edge, stop scrolling
+    const worldScaledWidth = this.worldWidth * this.currentScale;
+    const maxScroll = -(worldScaledWidth - this.viewportWidth);
+
+    // Apply clamping: world can't scroll past finish line
+    // Math.max ensures we don't go more negative than maxScroll
+    this.worldContainer.x = Math.max(rawTargetX, maxScroll);
   }
 
   /**

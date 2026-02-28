@@ -47,6 +47,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
   const totalLanesRef = useRef(0); // Total number of lanes including sidewalks
   const startWidthRef = useRef(0); // Store start scenery width for camera calculations
   const roadWidthRef = useRef(0); // Store total road width
+  const laneWidthRef = useRef(0); // Store lane width for precise camera calculations
 
   // Layout dimensions for canvas resizing
   const finishWidthRef = useRef(0); // Store finish scenery width
@@ -210,6 +211,9 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         // Update game renderer with new size (sets canvas internal resolution)
         game.resize(totalWidth, totalHeight);
 
+        // Pass world dimensions to renderer for finish-line clamping
+        game.renderer.setWorldDimensions(totalWidth);
+
         // Initialize viewport scaling (fit game to container)
         if (canvas.parentElement) {
           const containerRect = canvas.parentElement.getBoundingClientRect();
@@ -353,6 +357,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         // Store layout dimensions for camera scrolling
         startWidthRef.current = startWidth;
         roadWidthRef.current = roadWidth;
+        laneWidthRef.current = config.laneWidth; // Store for precise lane-based camera
 
         // Initialize car spawner with road, chicken, gate manager, and container element
         // Get container element (parent of canvas)
@@ -481,6 +486,93 @@ export function useGame(canvasRef, config, scrollContainerRef) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Initialize once - handle difficulty changes separately
 
+  /**
+   * DISCRETE LANE-GRID CAMERA SYSTEM
+   * Pure mathematical function: State (laneIndex) → Screen Position (worldX)
+   * This formula runs during jumps AND during window resizes for deterministic positioning
+   */
+  const calculateWorldPosition = useCallback(
+    (laneIndex, containerWidth, canvasWidth) => {
+      // Constants: Chicken fixed at left side of screen
+      const CHICKEN_SCREEN_X = containerWidth * 0.1; // 10% from left edge
+      const laneWidth = laneWidthRef.current;
+      const startWidth = startWidthRef.current;
+
+      let targetWorldX;
+
+      if (laneIndex === 0) {
+        // Lane 0 (start): No world movement yet
+        targetWorldX = 0;
+      } else {
+        // Lane 1+: Discrete grid positioning
+        // Formula: Align current lane's left edge with CHICKEN_SCREEN_X
+        const roadLaneIndex = laneIndex - 1; // 0-based road lane (0 = first road lane)
+        const laneLeftEdge = startWidth + roadLaneIndex * laneWidth;
+        targetWorldX = -(laneLeftEdge - CHICKEN_SCREEN_X);
+      }
+
+      // FINISH-LINE CONSTRAINT: Prevent showing black space beyond finish
+      const maxScroll = -(canvasWidth - containerWidth);
+      const clampedWorldX = Math.max(targetWorldX, maxScroll);
+
+      return {
+        worldX: clampedWorldX,
+        chickenScreenX: CHICKEN_SCREEN_X,
+        isAtFinishBoundary: clampedWorldX === maxScroll,
+      };
+    },
+    [],
+  );
+
+  // Update camera position on resize to maintain chicken at left side
+  const updateCameraOnResize = useCallback(() => {
+    const game = gameRef.current;
+    const chicken = chickenRef.current;
+    const currentLane = currentLaneRef.current;
+
+    if (!game || !chicken || currentLane < 1 || !scrollContainerRef?.current) {
+      return; // Only adjust if game is active and in world-move mode
+    }
+
+    const stage = game.renderer?.app?.stage;
+    if (!stage) return;
+
+    const container = scrollContainerRef.current;
+    const containerWidth = container.clientWidth;
+    const canvasWidth = canvasWidthRef.current;
+
+    // Use the same discrete grid formula
+    const { worldX, chickenScreenX } = calculateWorldPosition(
+      currentLane,
+      containerWidth,
+      canvasWidth,
+    );
+
+    // Update chicken's screen position
+    if (chicken.container) {
+      chicken.container.position.x = chickenScreenX;
+      chicken.fixedViewportX = chickenScreenX;
+    }
+
+    // Apply world position
+    stage.x = worldX;
+  }, [scrollContainerRef, calculateWorldPosition]);
+
+  // Watch for container resizes and update camera position
+  useEffect(() => {
+    if (!scrollContainerRef?.current) return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateCameraOnResize();
+    });
+
+    resizeObserver.observe(scrollContainerRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [scrollContainerRef, updateCameraOnResize]);
+
   // Jump function to move chicken to next lane (memoized to prevent re-renders)
   const jumpChicken = useCallback(
     (onFinishCallback = null) => {
@@ -516,54 +608,46 @@ export function useGame(canvasRef, config, scrollContainerRef) {
       }
       const targetX = lanePositionsRef.current[nextLane];
 
-      // Start moving world when jumping FROM lane 2 TO lane 3 (nextLane >= 3)
-      const shouldMoveWorld = nextLane >= 3;
-      const wasMovingWorld = currentLane >= 3;
+      // Start moving world when jumping FROM lane 0 TO lane 1 (nextLane >= 1)
+      // This starts world scrolling immediately from the first lane
+      const shouldMoveWorld = nextLane >= 1;
+      const wasMovingWorld = currentLane >= 1;
 
       if (shouldMoveWorld && scrollContainerRef?.current) {
         const container = scrollContainerRef.current;
         const containerWidth = container.clientWidth;
-        const fixedChickenX = containerWidth * 0.4;
-
-        // If this is the first time entering world-move mode, set chicken to fixed position
-        if (!wasMovingWorld) {
-          chicken.container.position.x = fixedChickenX;
-        }
-
-        // Calculate world offset animation
+        const canvasWidth = canvasWidthRef.current;
         const stage = game.renderer?.app?.stage;
+
         if (stage) {
-          const containerWidth = container.clientWidth;
-          const canvasWidth = canvasWidthRef.current;
-
-          // Calculate maximum allowed world offset to prevent black space
-          const maxWorldOffset = Math.max(0, canvasWidth - containerWidth);
-
-          // Current world offset (where we are now)
-          // On first transition to world-move mode, calculate based on chicken's actual position
-          // On subsequent moves, use the stage's current offset
-          const currentWorldOffset = wasMovingWorld
-            ? -stage.x
-            : chicken.x - fixedChickenX;
-
-          // Target world offset (where we want to be) - clamped to valid range
-          let targetWorldOffset = targetX - fixedChickenX;
-          targetWorldOffset = Math.max(
-            0,
-            Math.min(targetWorldOffset, maxWorldOffset),
+          // Calculate start and end positions using discrete grid formula
+          const startPosition = calculateWorldPosition(
+            currentLane,
+            containerWidth,
+            canvasWidth,
+          );
+          const endPosition = calculateWorldPosition(
+            nextLane,
+            containerWidth,
+            canvasWidth,
           );
 
-          // Pass world animation data to chicken
+          // If this is first time entering world-move mode, set chicken to fixed position
+          if (!wasMovingWorld) {
+            chicken.container.position.x = startPosition.chickenScreenX;
+          }
+
+          // Pass discrete grid animation data to chicken for frame-perfect sync
           const worldAnimationData = {
             stage: stage,
-            startOffset: currentWorldOffset,
-            endOffset: targetWorldOffset,
-            maxWorldOffset: maxWorldOffset,
-            fixedViewportX: fixedChickenX,
+            startWorldX: wasMovingWorld ? stage.x : startPosition.worldX,
+            endWorldX: endPosition.worldX,
+            fixedViewportX: endPosition.chickenScreenX,
+            currentLane: currentLane,
+            targetLane: nextLane,
           };
 
-          // Chicken jumps with world movement animation
-          // If jumping to finish, pass callback to trigger win sequence on landing
+          // Chicken jumps with frame-perfect camera sync
           const landingCallback = isJumpingToFinish ? onFinishCallback : null;
           chicken.jumpTo(
             targetX,
@@ -577,7 +661,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           chicken.jumpTo(targetX, shouldMoveWorld, null, landingCallback);
         }
       } else {
-        // First three lanes (0, 1, 2): chicken moves normally without world movement
+        // First lane (lane 0): chicken moves normally without world movement
         const landingCallback = isJumpingToFinish ? onFinishCallback : null;
         chicken.jumpTo(targetX, shouldMoveWorld, null, landingCallback);
       }
@@ -610,7 +694,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
 
       return true;
     },
-    [scrollContainerRef],
+    [scrollContainerRef, calculateWorldPosition],
   );
 
   // Get current coin multiplier
