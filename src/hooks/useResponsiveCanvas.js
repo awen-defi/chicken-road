@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 
 /**
- * useResponsiveCanvas - Custom hook to make canvas responsive
- * Automatically resizes canvas to fit container while maintaining aspect ratio
+ * useResponsiveCanvas - Real-time viewport scaling for fluid responsiveness
+ * Implements instant resize updates using requestAnimationFrame
+ * Optimized for vertical-anchor scaling system
  */
 export function useResponsiveCanvas(
   canvasRef,
@@ -10,7 +11,7 @@ export function useResponsiveCanvas(
   gameRef,
   options = {},
 ) {
-  const resizeTimeoutRef = useRef(null);
+  const rafIdRef = useRef(null);
   const {
     maintainAspectRatio = false,
     aspectRatio = 16 / 9,
@@ -21,13 +22,13 @@ export function useResponsiveCanvas(
     if (!canvasRef.current || !containerRef.current) return;
 
     const handleResize = () => {
-      // Clear previous timeout
-      if (resizeTimeoutRef.current) {
-        clearTimeout(resizeTimeoutRef.current);
+      // Cancel any pending animation frame
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
       }
 
-      // Debounce resize to avoid too many updates
-      resizeTimeoutRef.current = setTimeout(() => {
+      // Use requestAnimationFrame for immediate, smooth updates
+      rafIdRef.current = requestAnimationFrame(() => {
         const container = containerRef.current;
         const canvas = canvasRef.current;
 
@@ -50,19 +51,18 @@ export function useResponsiveCanvas(
         canvas.style.width = `${width}px`;
         canvas.style.height = `${height}px`;
 
-        // Notify game of resize if available
+        // IMMEDIATE viewport update for fluid responsiveness
+        // Vertical-anchor system scales instantly based on viewport height
         const game = gameRef?.current;
-        if (game && typeof game.resize === "function") {
-          // Note: We don't change canvas.width/canvas.height here
-          // because that would clear the canvas and affect world coordinates
-          // The game will handle scaling if needed
+        if (game && typeof game.updateViewport === "function") {
+          game.updateViewport(width, height);
         }
 
         // Call custom resize callback
         if (onResize) {
           onResize(width, height);
         }
-      }, 100);
+      });
     };
 
     // Initial resize
@@ -77,8 +77,8 @@ export function useResponsiveCanvas(
 
     // Cleanup
     return () => {
-      if (resizeTimeoutRef.current) {
-        clearTimeout(resizeTimeoutRef.current);
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
       }
       resizeObserver.disconnect();
       window.removeEventListener("resize", handleResize);

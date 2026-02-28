@@ -223,6 +223,11 @@ export class Game {
           this.pulseIntensity;
       this.winDisplay.scale.set(scale);
     }
+
+    // Update camera to follow chicken (keeps chicken vertically centered)
+    if (this.renderer) {
+      this.renderer.updateCamera();
+    }
   }
 
   /**
@@ -571,13 +576,24 @@ export class Game {
   }
 
   /**
-   * Resize canvas
+   * Resize canvas - sets internal rendering resolution
    */
   resize(width, height) {
     if (this.renderer) {
       this.renderer.resize(width, height);
     }
     // Reposition win display after resize
+    this.positionWinDisplay();
+  }
+
+  /**
+   * Update viewport scaling - handles window/container resize
+   */
+  updateViewport(viewportWidth, viewportHeight) {
+    if (this.renderer) {
+      this.renderer.updateViewport(viewportWidth, viewportHeight);
+    }
+    // Reposition win display after viewport change
     this.positionWinDisplay();
   }
 

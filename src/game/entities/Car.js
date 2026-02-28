@@ -86,7 +86,7 @@ export class Car extends BaseEntity {
       this.container.cullable = false; // Disable automatic culling
 
       // CRITICAL: Ensure container bounds are not cached (they update as car moves)
-      this.container.cacheAsBitmap = false;
+      this.container.cacheAsTexture = false; // Updated from deprecated cacheAsBitmap
 
       // Set explicit bounds to prevent clipping (use very large bounds)
       this.container.filterArea = null; // No filter area restriction

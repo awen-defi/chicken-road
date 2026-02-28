@@ -204,23 +204,30 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         roadHeightRef.current = roadHeight;
         canvasWidthRef.current = totalWidth; // Store for world offset clamping
 
-        // Update game renderer with new size
+        // Update game renderer with new size (sets canvas internal resolution)
         game.resize(totalWidth, totalHeight);
 
-        // Move scenery up to reveal walking road (isolated from road centering)
-        const sceneryOffsetY = -600; // Scenery stays at current position
+        // Initialize viewport scaling (fit game to container)
+        if (canvas.parentElement) {
+          const containerRect = canvas.parentElement.getBoundingClientRect();
+          game.updateViewport(containerRect.width, containerRect.height);
+        }
 
         // Calculate positions for game elements (chicken, coins, gates, road)
         // Position chicken in middle area
         const gameElementsCenterY = totalHeight * 0.4; // Position in middle area (moved down)
         const roadY = gameElementsCenterY - roadHeight / 2; // Road aligned with chicken
 
+        // CRITICAL ALIGNMENT: Scenery must share the same Y baseline as the road
+        // This ensures Start/Finish edges perfectly align with Road edges
+        const sceneryY = roadY; // Align scenery with road (no offset)
+
         // Create entities with Pixi texture
 
-        // Start scenery (isolated positioning - unchanged)
+        // Start scenery (aligned with road for perfect edge matching)
         const startScenery = new Scenery(
           0,
-          sceneryOffsetY,
+          sceneryY,
           "start",
           startTexture,
           sceneryScale,
@@ -253,10 +260,10 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         entityManager.addEntity(road);
         roadRef.current = road; // Store reference for updates
 
-        // Finish scenery (isolated positioning - unchanged)
+        // Finish scenery (aligned with road for perfect edge matching)
         const finishScenery = new Scenery(
           startWidth + roadWidth,
-          sceneryOffsetY,
+          sceneryY,
           "finish",
           finishTexture,
           sceneryScale,
@@ -303,6 +310,9 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         chicken.setDirection(true); // Facing right
         entityManager.addEntity(chicken);
         chickenRef.current = chicken;
+
+        // Set camera target to follow chicken (vertically centered)
+        game.renderer.setCameraTarget(chicken, 0);
 
         // Calculate lane positions for jumping
         // Lane 0: starting position (on start scenery/sidewalk)

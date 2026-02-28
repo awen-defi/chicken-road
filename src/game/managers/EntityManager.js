@@ -8,23 +8,27 @@ export class EntityManager {
     this.entitiesToAdd = [];
     this.entitiesToRemove = [];
     this.pixiRenderer = pixiRenderer;
-    this.stage = pixiRenderer ? pixiRenderer.getStage() : null;
+    this.worldContainer = pixiRenderer
+      ? pixiRenderer.getWorldContainer()
+      : null;
+    // Backwards compatibility: stage now points to worldContainer
+    this.stage = this.worldContainer;
   }
 
   /**
-   * Set the Pixi renderer (for adding entities to stage)
+   * Set the Pixi renderer (for adding entities to world container)
    */
   setPixiRenderer(pixiRenderer) {
     this.pixiRenderer = pixiRenderer;
-    this.stage = pixiRenderer ? pixiRenderer.getStage() : null;
+    this.worldContainer = pixiRenderer
+      ? pixiRenderer.getWorldContainer()
+      : null;
+    // Backwards compatibility: stage now points to worldContainer
+    this.stage = this.worldContainer;
 
-    // Enable sortable children for z-index support
-    if (this.stage) {
-      this.stage.sortableChildren = true;
-
-      // CRITICAL: Disable culling on stage to prevent car flickering
-      this.stage.cullable = false;
-    }
+    // World container is already configured in PixiRenderer with:
+    // - sortableChildren: true (z-index support)
+    // - cullable: false (prevent car flickering)
   }
 
   /**
@@ -67,15 +71,15 @@ export class EntityManager {
 
         this.entities.push(entity);
 
-        // Add entity's display object to Pixi stage
-        if (this.stage && entity.getDisplayObject) {
+        // Add entity's display object to Pixi world container
+        if (this.worldContainer && entity.getDisplayObject) {
           const displayObject = entity.getDisplayObject();
           if (displayObject && !displayObject.destroyed) {
             try {
-              this.stage.addChild(displayObject);
+              this.worldContainer.addChild(displayObject);
             } catch (e) {
               console.error(
-                `Failed to add ${entity.constructor.name} to stage:`,
+                `Failed to add ${entity.constructor.name} to world:`,
                 e,
               );
             }
@@ -104,12 +108,12 @@ export class EntityManager {
       this.entities = this.entities.filter((entity) => {
         if (!entity || toRemoveSet.has(entity)) {
           if (entity) {
-            // Remove from Pixi stage
-            if (this.stage && entity.getDisplayObject) {
+            // Remove from Pixi world container
+            if (this.worldContainer && entity.getDisplayObject) {
               const displayObject = entity.getDisplayObject();
               if (displayObject && displayObject.parent) {
                 try {
-                  this.stage.removeChild(displayObject);
+                  this.worldContainer.removeChild(displayObject);
                 } catch {
                   // Display object might already be removed
                 }
@@ -147,12 +151,12 @@ export class EntityManager {
       const entity = this.entities[i];
       if (!entity) continue;
 
-      // Remove from Pixi stage
-      if (this.stage && entity.getDisplayObject) {
+      // Remove from Pixi world container
+      if (this.worldContainer && entity.getDisplayObject) {
         const displayObject = entity.getDisplayObject();
         if (displayObject && displayObject.parent) {
           try {
-            this.stage.removeChild(displayObject);
+            this.worldContainer.removeChild(displayObject);
           } catch {
             // Display object might already be removed
           }

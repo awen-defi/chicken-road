@@ -1,5 +1,5 @@
 import { useRef, useEffect, useMemo } from "react";
-import { useGame } from "../../hooks";
+import { useGame, useResponsiveCanvas } from "../../hooks";
 import { getDefaultConfig } from "../../config/gameConfig";
 import "./CanvasGameArea.css";
 
@@ -15,6 +15,7 @@ export function CanvasGameArea({
 }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
+  const gameRef = useRef(null);
   const previousDifficultyRef = useRef(difficulty);
 
   // Pass containerRef to parent for scroll control
@@ -67,6 +68,17 @@ export function CanvasGameArea({
     resetGame,
     registerCollisionCallback,
   } = useGame(canvasRef, config, containerRef);
+
+  // Store game reference for responsive canvas hook
+  useEffect(() => {
+    if (window.__GAME_INSTANCE__) {
+      gameRef.current = window.__GAME_INSTANCE__;
+    }
+  }, [isLoading]);
+
+  // CRITICAL: Connect real-time resize handler for instant viewport updates
+  // This enables live scaling without page refresh
+  useResponsiveCanvas(canvasRef, containerRef, gameRef);
 
   // Handle difficulty changes
   useEffect(() => {

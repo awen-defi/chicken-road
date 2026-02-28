@@ -10,14 +10,47 @@ import {
 /**
  * PixiRenderer - Advanced WebGL-based rendering using Pixi.js
  * Provides hardware-accelerated rendering with optimal performance
+ * Implements vertical-anchor viewport with frame-perfect camera tracking
+ *
+ * ARCHITECTURE:
+ * - Viewport Scaling: Based ONLY on window height (ignores width)
+ * - Scale Formula: (viewportHeight / 1080) * 1.25 (1.25x zoom for visibility)
+ * - Horizontal Position: Always left-aligned (x=0) - no centering
+ * - Vertical Position: Frame-locked to chicken's Y coordinate
+ *
+ * CRITICAL TIMING:
+ * - updateViewport(): Called on window resize (updates scale + canvas size ATOMICALLY)
+ * - updateCamera(): Called EVERY FRAME in game ticker (locks chicken to screen center)
+ *
+ * PERFORMANCE:
+ * - No interpolation/smoothing on camera (eliminates lag)
+ * - Direct mathematical binding: worldContainer.y = viewportMid - (chicken.y * scale)
+ * - Instant visual response to window resize (no refresh required)
  */
 export class PixiRenderer {
   constructor(canvas, config = {}) {
     this.canvas = canvas;
     this.app = null;
     this.stage = null;
+    this.worldContainer = null; // Main container for all game entities (camera target)
     this.uiLayer = null; // Separate UI layer for notifications that don't scroll
     this.initialized = false;
+
+    // Vertical-Anchor Scaling System
+    // Base logical height for vertical scaling calculations
+    this.BASE_LOGICAL_HEIGHT = 1080;
+
+    // Zoom multiplier for better visibility (1.25x enlargement)
+    this.ZOOM_MULTIPLIER = 1.25;
+
+    // Current scale and viewport state
+    this.currentScale = 1;
+    this.viewportWidth = 0;
+    this.viewportHeight = 0;
+
+    // Camera follow target (typically the chicken)
+    this.cameraTarget = null;
+    this.cameraOffsetY = 0; // Vertical offset for centering
 
     // Configuration with optimal defaults
     this.config = {
@@ -63,6 +96,12 @@ export class PixiRenderer {
       this.stage.cullable = false;
     }
 
+    // Create world container - holds all game entities and follows camera
+    this.worldContainer = new Container();
+    this.worldContainer.cullable = false; // Prevent culling
+    this.worldContainer.sortableChildren = true; // Enable z-index
+    this.app.stage.addChild(this.worldContainer);
+
     // Create separate UI layer for notifications that stays fixed on viewport
     // This layer doesn't scroll with the game world (stage.x changes)
     this.uiLayer = new Container();
@@ -76,6 +115,13 @@ export class PixiRenderer {
    */
   getStage() {
     return this.stage;
+  }
+
+  /**
+   * Get the world container (where all game entities live)
+   */
+  getWorldContainer() {
+    return this.worldContainer;
   }
 
   /**
@@ -246,12 +292,130 @@ export class PixiRenderer {
   }
 
   /**
-   * Resize renderer
+   * Set camera target for follow behavior
+   * @param {Object} target - Entity with x, y properties
+   * @param {Number} offsetY - Vertical offset (0 = center, positive = lower on screen)
+   */
+  setCameraTarget(target, offsetY = 0) {
+    this.cameraTarget = target;
+    this.cameraOffsetY = offsetY;
+  }
+
+  /**
+   * Resize renderer - sets canvas internal rendering resolution
+   * This is the actual size the game renders at (can be large)
    */
   resize(width, height) {
-    if (this.app) {
-      this.app.renderer.resize(width, height);
-    }
+    if (!this.app) return;
+
+    // Resize the actual renderer (internal rendering resolution)
+    this.app.renderer.resize(width, height);
+  }
+
+  /**
+   * Update viewport scaling - Vertical-Anchor Strategy (ATOMIC OPERATION)
+   * CRITICAL: This must update THREE properties atomically for instant visual response:
+   * 1. Renderer size (canvas dimensions)
+   * 2. Global scale (calculated from viewport height)
+   * 3. WorldContainer scale (applied to all entities)
+   *
+   * ARCHITECTURE NOTE:
+   * We scale worldContainer (child of app.stage), NOT app.stage itself.
+   * This allows UI elements to remain unscaled while game world scales.
+   * app.stage.scale is always 1.0 - worldContainer.scale varies.
+   */
+  updateViewport(viewportWidth, viewportHeight) {
+    if (!this.app || !this.worldContainer) return;
+
+    // Store viewport dimensions (used by updateCamera every frame)
+    this.viewportWidth = viewportWidth;
+    this.viewportHeight = viewportHeight;
+
+    // Update renderer resolution for high-DPI displays
+    this.app.renderer.resolution = window.devicePixelRatio || 1;
+
+    // ━━━ ATOMIC OPERATION 1: Resize canvas to match viewport ━━━
+    this.app.renderer.resize(viewportWidth, viewportHeight);
+
+    // ━━━ ATOMIC OPERATION 2: Calculate scale based ONLY on viewport height ━━━
+    // Vertical-Anchor Strategy: Height is the master constraint
+    // Apply 1.25x zoom multiplier for better visibility
+    this.currentScale =
+      (viewportHeight / this.BASE_LOGICAL_HEIGHT) * this.ZOOM_MULTIPLIER;
+
+    // ━━━ ATOMIC OPERATION 3: Apply scale to worldContainer immediately ━━━
+    // This ensures visual update happens in the SAME FRAME as resize event
+    // CRITICAL: This is the "live Pixi object" scale application the user requires
+    this.worldContainer.scale.set(this.currentScale);
+
+    // ENFORCE: Ensure stage itself is at baseline scale (1.0)
+    // worldContainer handles all game scaling, stage remains unscaled for UI layer
+    this.app.stage.scale.set(1.0);
+
+    // LEFT-ALIGNED: No horizontal centering (horizontally scrollable game)
+    // Lock to left edge (x=0) for all viewport sizes
+    // CRITICAL: This must NEVER be changed elsewhere - horizontal position is ALWAYS 0
+    this.worldContainer.x = 0;
+
+    // SYNCHRONIZE CAMERA IMMEDIATELY
+    // Must call updateCamera() HERE to prevent frame-delay desync
+    // This ensures camera position updates in the SAME FRAME as scale change
+    this.updateCamera();
+  }
+
+  /**
+   * FRAME-PERFECT CAMERA UPDATE (Hard-Locked Vertical Tracking)
+   * Called EVERY FRAME in the game ticker
+   * CRITICAL: No interpolation, no smoothing - direct mathematical binding
+   *
+   * Math: worldContainer.y = viewportMid - (chicken.y * scale)
+   * This ensures chicken's screen position is EXACTLY viewportMid regardless of its logical Y
+   */
+  updateCamera() {
+    if (!this.worldContainer || !this.cameraTarget) return;
+
+    // Safeguard: Ensure viewport dimensions are valid
+    // This prevents NaN or 0 values during initialization
+    if (this.viewportHeight <= 0 || this.currentScale <= 0) return;
+
+    // HARD-LOCK: Chicken must appear at EXACTLY 50% of viewport height
+    // No lerp, no smoothing, no tweens - pure mathematical lock
+    const viewportMid = this.viewportHeight / 2;
+
+    // Calculate chicken's scaled position in world space
+    // The scale MUST be the current scale (updated by updateViewport)
+    const chickenScaledY = this.cameraTarget.y * this.currentScale;
+
+    // INVERSE TRANSFORM: Move world container opposite to chicken movement
+    // When chicken moves UP (+Y in logical space), world moves DOWN (-Y in screen space)
+    // This creates the illusion of camera following
+    //
+    // DIRECT SLAVE BINDING (No Interpolation):
+    // Camera position = f(chicken.y, currentScale) - computed every single frame
+    // NO lerp, NO smoothing, NO deltaTime - chicken and camera move as ONE unit
+    this.worldContainer.y = viewportMid - chickenScaledY + this.cameraOffsetY;
+  }
+
+  /**
+   * Get logical-to-screen coordinate conversion
+   * Useful for converting logical game coordinates to screen pixels
+   */
+  logicalToScreen(logicalX, logicalY) {
+    return {
+      x: this.worldContainer.x + logicalX * this.currentScale,
+      y: this.worldContainer.y + logicalY * this.currentScale,
+    };
+  }
+
+  /**
+   * Get screen-to-logical coordinate conversion
+   * Useful for converting mouse/touch input to game coordinates
+   */
+  screenToLogical(screenX, screenY) {
+    return {
+      x: (screenX - this.worldContainer.x) / this.currentScale,
+      y: (screenY - this.worldContainer.y) / this.currentScale,
+    };
   }
 
   /**
