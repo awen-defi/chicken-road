@@ -645,16 +645,29 @@ export function useGame(canvasRef, config, scrollContainerRef) {
             shouldMoveWorld,
             worldAnimationData,
             landingCallback,
+            isJumpingToFinish,
           );
         } else {
           // Fallback if stage not available
           const landingCallback = isJumpingToFinish ? onFinishCallback : null;
-          chicken.jumpTo(targetX, shouldMoveWorld, null, landingCallback);
+          chicken.jumpTo(
+            targetX,
+            shouldMoveWorld,
+            null,
+            landingCallback,
+            isJumpingToFinish,
+          );
         }
       } else {
         // First lane (lane 0): chicken moves normally without world movement
         const landingCallback = isJumpingToFinish ? onFinishCallback : null;
-        chicken.jumpTo(targetX, shouldMoveWorld, null, landingCallback);
+        chicken.jumpTo(
+          targetX,
+          shouldMoveWorld,
+          null,
+          landingCallback,
+          isJumpingToFinish,
+        );
       }
 
       currentLaneRef.current = nextLane;

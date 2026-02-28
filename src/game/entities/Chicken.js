@@ -25,7 +25,7 @@ export class Chicken extends BaseEntity {
     this.jumpEndX = x;
     this.jumpStartY = y;
     this.jumpProgress = 0;
-    this.jumpDuration = 0.7; // 700ms jump animation for smooth arc
+    this.jumpDuration = 0.4; // 400ms jump animation for fast movement
     this.worldOffsetX = 0; // Track world offset for fixed chicken position
     this.minY = 50; // Minimum Y position to prevent going too high
     this.hasStartedJumpAnimation = false; // Track if animation has started
@@ -282,12 +282,14 @@ export class Chicken extends BaseEntity {
    * @param {boolean} shouldMoveWorld - If true, chicken stays fixed on screen (world scrolls)
    * @param {Object} worldAnimationData - Not used anymore (camera is atomic)
    * @param {Function} onComplete - Optional callback to trigger when landing completes
+   * @param {boolean} isJumpingToFinish - If true, don't show tooltip after landing
    */
   jumpTo(
     targetX,
     shouldMoveWorld = false,
     worldAnimationData = null,
     onComplete = null,
+    isJumpingToFinish = false,
   ) {
     if (this.isJumping) return; // Already jumping
 
@@ -299,6 +301,10 @@ export class Chicken extends BaseEntity {
     this.shouldMoveWorld = shouldMoveWorld;
     this.hasStartedJumpAnimation = false; // Reset animation flag
     this.onJumpComplete = onComplete; // Store callback
+    this.isJumpingToFinish = isJumpingToFinish; // Store finish flag
+
+    // Hide tooltip during jump
+    this.hideTooltip();
 
     // For world-move mode, calculate fixed viewport position
     if (shouldMoveWorld && worldAnimationData) {
@@ -324,7 +330,7 @@ export class Chicken extends BaseEntity {
         if (this.spine && this.spine.state) {
           try {
             this.spine.state.setAnimation(0, "jump", false);
-            this.spine.state.timeScale = 1;
+            this.spine.state.timeScale = 1.6;
             this.currentAnimation = "jump";
           } catch {
             console.warn("Jump animation not found, falling back to walk");
@@ -359,6 +365,11 @@ export class Chicken extends BaseEntity {
         // Ensure container visibility
         this.container.visible = true;
         this.container.alpha = 1.0;
+
+        // Show tooltip after successful landing (unless jumping to finish)
+        if (!this.isJumpingToFinish) {
+          this.showTooltip();
+        }
 
         // Trigger completion callback if provided
         if (this.onJumpComplete) {

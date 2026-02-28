@@ -13,6 +13,17 @@ export class Gate extends BaseEntity {
     this.scale = config.scale || 0.7;
     this.laneIndex = config.laneIndex || 0;
 
+    // Drop animation state
+    this.isAnimating = true;
+    this.animationProgress = 0;
+    this.animationDuration = 0.2; // 200ms drop animation
+    this.startY = y - 200; // Start 400px above final position
+    this.targetY = y;
+
+    // Set initial position for animation (start above, then drop down)
+    this.y = this.startY;
+    this.container.position.y = this.startY;
+
     if (texture) {
       this.setTexture(texture);
     }
@@ -50,11 +61,28 @@ export class Gate extends BaseEntity {
   }
 
   /**
-   * Update gate (static)
+   * Update gate (with drop animation)
    */
   update(deltaTime) {
     super.update(deltaTime);
-    void deltaTime;
+
+    // Handle drop animation
+    if (this.isAnimating) {
+      this.animationProgress += deltaTime / this.animationDuration;
+
+      if (this.animationProgress >= 1) {
+        // Animation complete
+        this.animationProgress = 1;
+        this.isAnimating = false;
+        this.y = this.targetY;
+        this.container.position.y = this.y;
+      } else {
+        // Ease out cubic for smooth deceleration
+        const easeProgress = 1 - Math.pow(1 - this.animationProgress, 3);
+        this.y = this.startY + (this.targetY - this.startY) * easeProgress;
+        this.container.position.y = this.y;
+      }
+    }
   }
 
   /**
