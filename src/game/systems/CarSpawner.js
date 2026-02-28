@@ -294,17 +294,18 @@ export class CarSpawner {
       : this.chicken.y;
 
     // Spawn car directly on the target lane at the chicken's landing Y position
-    // We want the car to be positioned so it arrives at the chicken's landing spot at the same time
+    // We want the car to be positioned so it arrives at the chicken's landing spot during/after the jump
     // Chicken jump takes ~400ms (0.4 seconds)
     const jumpDuration = 0.4; // seconds
 
     // Calculate how fast the car needs to move to guarantee a hit
-    // We'll use a very fast speed to ensure collision
-    const guaranteedSpeed = this.maxSpeed * 2.0; // Double max speed for guaranteed hit
+    // Use 3x max speed to ensure the car moves very fast and hits the chicken
+    const guaranteedSpeed = this.maxSpeed * 3.0; // 3x max speed for guaranteed collision
 
     // Spawn car above the chicken's current Y position
-    // Distance = speed * time, so we spawn the car at a distance that will take exactly jumpDuration to reach chicken
-    const distanceToTravel = guaranteedSpeed * jumpDuration;
+    // Position car to arrive slightly after jump starts for guaranteed collision
+    // Car should travel during jump duration to reach chicken position
+    const distanceToTravel = guaranteedSpeed * jumpDuration * 0.5; // Spawn closer (50% of full distance)
     const spawnY = chickenCurrentY - distanceToTravel;
     const spawnX = lane.centerX; // Spawn on the exact lane center
 
