@@ -41,6 +41,11 @@ export function useGame(canvasRef, config, scrollContainerRef) {
   const finishSceneryRef = useRef(null); // Store finish scenery reference for updates
   const isInitializedRef = useRef(false);
 
+  // Decorative sprite references for dynamic updates
+  const lightSpriteRef = useRef(null); // Store light pole sprite reference
+  const bannerSpriteRef = useRef(null); // Store banner sprite reference
+  const gameElementsCenterYRef = useRef(0); // Store center Y position for sprite updates
+
   // Lane tracking for chicken jumps
   const currentLaneRef = useRef(0); // 0 = start sidewalk, 1-N = road lanes, N+1 = finish sidewalk
   const lanePositionsRef = useRef([]); // Array of X positions for each lane
@@ -223,6 +228,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         // Calculate positions for game elements (chicken, coins, gates, road)
         // Position chicken in middle area
         const gameElementsCenterY = totalHeight * 0.4; // Position in middle area (moved down)
+        gameElementsCenterYRef.current = gameElementsCenterY; // Store for later updates
         const roadY = gameElementsCenterY - roadHeight / 2; // Road aligned with chicken
 
         // CRITICAL ALIGNMENT: Scenery must share the same Y baseline as the road
@@ -261,6 +267,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           lightSprite.y = gameElementsCenterY - 200; // Slightly below chicken level
           lightSprite.zIndex = 10; // Above scenery but below coins
           entityManager.stage.addChild(lightSprite);
+          lightSpriteRef.current = lightSprite; // Store reference for updates
         }
 
         // Road (positioned to align with chicken)
@@ -298,6 +305,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           bannerSprite.y = gameElementsCenterY - 30; // Slightly below chicken level
           bannerSprite.zIndex = 10; // Above scenery but below coins
           entityManager.stage.addChild(bannerSprite);
+          bannerSpriteRef.current = bannerSprite; // Store reference for updates
         }
 
         // Chicken with Spine animation (positioned more to the left after start image clipping)
@@ -769,8 +777,18 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         stage.x = 0;
       }
 
-      // Resize canvas to match new layout
+      // Update decorative sprite positions based on new road width
       const finishWidth = finishWidthRef.current;
+
+      // Update banner position if it exists
+      if (bannerSpriteRef.current) {
+        bannerSpriteRef.current.x =
+          startWidth + newRoadWidth + finishWidth * 0.45;
+      }
+
+      // Light sprite position is based on startWidth only, so no update needed
+
+      // Resize canvas to match new layout
       const roadHeight = roadHeightRef.current;
       const newTotalWidth = startWidth + newRoadWidth + finishWidth / 2;
       const newTotalHeight = roadHeight; // Height doesn't change
@@ -778,6 +796,10 @@ export function useGame(canvasRef, config, scrollContainerRef) {
       canvasWidthRef.current = newTotalWidth; // Update canvas width ref
 
       game.resize(newTotalWidth, newTotalHeight);
+
+      // CRITICAL: Update world dimensions for atomic camera's finish-line clamping
+      // This ensures maxScroll calculation uses the new canvas width
+      game.renderer.setWorldDimensions(newTotalWidth);
 
       // Force container to recalculate scroll bounds by triggering reflow
       if (scrollContainerRef?.current) {
