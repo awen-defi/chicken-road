@@ -202,7 +202,7 @@ function DifficultyLevelSelect({ level, setDifficulty }) {
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  stroke-Width="2"
+                  strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   className="difficulty-level-check"

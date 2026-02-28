@@ -1,5 +1,11 @@
 import { Application, Assets, Container, Graphics } from "pixi.js";
-import { Spine } from "@esotericsoftware/spine-pixi-v8";
+import {
+  Spine,
+  TextureAtlas,
+  AtlasAttachmentLoader,
+  SkeletonJson,
+  SpineTexture,
+} from "@esotericsoftware/spine-pixi-v8";
 
 /**
  * PixiRenderer - Advanced WebGL-based rendering using Pixi.js
@@ -135,8 +141,63 @@ export class PixiRenderer {
   }
 
   /**
-   * Load Spine animation from JSON file
+   * Load Spine animation from imported ESM modules (Base64 embedded assets)
+   * This method handles the manual resolution of atlas textures for single-file builds
+   *
+   * @param {string} key - Unique identifier for this Spine animation
+   * @param {object} skeletonData - Imported JSON skeleton data
+   * @param {string} atlasText - Imported .atlas file as raw text
+   * @param {string} textureUrl - Imported PNG texture (Base64 data URI or ESM import)
+   */
+  async loadSpineFromImports(key, skeletonData, atlasText, textureUrl) {
+    try {
+      // Load the texture first using PixiJS Assets
+      const textureKey = `${key}_texture`;
+      Assets.add({ alias: textureKey, src: textureUrl });
+      const pixiTexture = await Assets.load(textureKey);
+
+      // Create a TextureAtlas from the atlas text
+      const spineAtlas = new TextureAtlas(atlasText);
+
+      // Set the texture for each atlas page
+      // The atlas text references a PNG file, we need to provide that texture
+      for (const page of spineAtlas.pages) {
+        // Create a SpineTexture from the PixiJS texture source
+        const spineTexture = SpineTexture.from(pixiTexture.source);
+        page.setTexture(spineTexture);
+      }
+
+      // Create an attachment loader with the atlas
+      const attachmentLoader = new AtlasAttachmentLoader(spineAtlas);
+
+      // Create a skeleton JSON parser
+      const skeletonJsonParser = new SkeletonJson(attachmentLoader);
+
+      // Parse the skeleton data (can be object or JSON string)
+      const parsedSkeletonData =
+        skeletonJsonParser.readSkeletonData(skeletonData);
+
+      // Store in our custom cache for later use
+      if (!this._spineCache) {
+        this._spineCache = {};
+      }
+
+      this._spineCache[key] = {
+        skeletonData: parsedSkeletonData,
+        atlas: spineAtlas,
+      };
+
+      return { key };
+    } catch (error) {
+      console.error(`Failed to load Spine animation ${key}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Load Spine animation from JSON file (legacy method for URL-based loading)
    * The spine-pixi-v8 loader automatically handles atlas loading
+   * @deprecated Use loadSpineFromImports for single-file builds
    */
   async loadSpineAnimation(key, jsonUrl, atlasUrl) {
     try {
@@ -155,9 +216,23 @@ export class PixiRenderer {
 
   /**
    * Create a Spine instance from loaded data
+   * @param {object} assetKeys - Either { skeleton, atlas } for URL-based or { key } for ESM imports
    */
   createSpine(assetKeys) {
     try {
+      // Check if this is from our custom spine cache (ESM imports)
+      if (
+        assetKeys.key &&
+        this._spineCache &&
+        this._spineCache[assetKeys.key]
+      ) {
+        const cached = this._spineCache[assetKeys.key];
+        // Create Spine instance directly from parsed data
+        const spine = new Spine(cached.skeletonData);
+        return spine;
+      }
+
+      // Otherwise, use the standard Assets-based loading (URL-based)
       // Create Spine instance - spine-pixi-v8 format
       // Expects { skeleton: 'skeleton-key', atlas: 'atlas-key' }
       const spine = Spine.from(assetKeys);

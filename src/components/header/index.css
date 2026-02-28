@@ -126,6 +126,18 @@
   width: 576px;
   max-width: 90%;
   outline: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  scrollbar-width: none;
+  /* For Internet Explorer and Edge */
+  -ms-overflow-style: none;
+}
+
+.how-to-play-modal::-webkit-scrollbar {
+  display: none;
+  width: 0; /* Optional: also hide horizontal scrollbar width if needed */
+  height: 0; /* Optional: also hide vertical scrollbar height if needed */
 }
 
 .how-to-play-modal::backdrop {

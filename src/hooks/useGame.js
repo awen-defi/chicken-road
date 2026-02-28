@@ -8,6 +8,8 @@ import { Road } from "../game/entities/Road.js";
 import { Scenery } from "../game/entities/Scenery.js";
 import { DIFFICULTY_SETTINGS } from "../config/gameConfig.js";
 import { gameEvents } from "../game/core/GameEventBus.js";
+
+// Import all game assets as ESM modules (will be inlined as Base64)
 import startImg from "../assets/start.png";
 import finishImg from "../assets/finish.png";
 import gateImg from "../assets/gate.png";
@@ -21,6 +23,11 @@ import carYellowImg from "../assets/car-yellow.png";
 import carPoliceImg from "../assets/car-police.png";
 import lightImg from "../assets/light.png";
 import carpetImg from "../assets/carpet.png";
+
+// Import Spine animation assets for single-file build
+import chickenSkeletonData from "../assets/chicken.json";
+import chickenAtlasText from "../assets/chicken.atlas?raw";
+import chickenTexture from "../assets/chicken.png";
 
 /**
  * useGame - Custom hook to manage game instance lifecycle with Pixi.js
@@ -144,13 +151,14 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           console.error("Finish banner texture not available (optional)");
         }
 
-        // Load Spine animation for chicken with error handling
+        // Load Spine animation for chicken using ESM imports
         let chickenKeys;
         try {
-          chickenKeys = await game.renderer.loadSpineAnimation(
+          chickenKeys = await game.renderer.loadSpineFromImports(
             "chicken",
-            "./chicken.json",
-            "./chicken.atlas",
+            chickenSkeletonData,
+            chickenAtlasText,
+            chickenTexture,
           );
         } catch (error) {
           console.error("Failed to load chicken animation:", error);

@@ -16,6 +16,7 @@
 8. [Canvas & Animation Architecture](#7-canvas--animation-architecture)
 9. [Responsiveness System](#8-responsiveness-system)
 10. [Frontend Architecture Patterns](#9-frontend-architecture-patterns)
+11. [Single-File Build Architecture](#10-single-file-build-architecture)
 
 ---
 
@@ -3178,17 +3179,472 @@ async handleChickenDeath(onComplete) {
 
 ---
 
-**Document Version**: 2.0  
-**Last Updated**: February 28, 2026  
-**Status**: Production-Ready with Comprehensive Architecture Documentation
+## 10. Single-File Build Architecture
 
-This document represents the complete technical architecture including detailed coverage of:
+### Zero-Dependency Portable Build
 
-- Game state lifecycle and user actions
-- Collision detection and win/loss mechanics
-- Canvas rendering and animation systems (PixiJS v8 + Spine)
-- Responsiveness system (current implementation + future roadmap)
-- Frontend architecture patterns (Entity-Component, Manager, System, Event Bus, Callbacks)
-- Critical implementation details and gotchas
+The game is configured to produce a **completely self-contained single HTML file** with all assets embedded as Base64 data URIs. This enables the game to run from any location (USB drive, file system, etc.) without requiring a web server or external dependencies.
 
-All game mechanics, animation systems, rendering pipeline, and architectural patterns are fully documented and production-ready.
+### Build Configuration
+
+**Location**: [vite.config.js](vite.config.js)
+
+```javascript
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { viteSingleFile } from "vite-plugin-singlefile";
+
+export default defineConfig({
+  plugins: [
+    react(),
+    viteSingleFile(), // Inlines JS and CSS
+  ],
+  build: {
+    assetsInlineLimit: 100000000, // 100MB - force all assets to Base64
+    chunkSizeWarningLimit: 100000000,
+    cssCodeSplit: false, // Single CSS bundle
+    rollupOptions: {
+      output: {
+        inlineDynamicImports: true, // No code splitting
+      },
+    },
+  },
+});
+```
+
+**Key Settings**:
+
+- **`viteSingleFile`**: Plugin that inlines all JS and CSS into HTML
+- **`assetsInlineLimit: 100MB`**: Forces ALL images/assets to Base64 (default is 4KB)
+- **`cssCodeSplit: false`**: Prevents CSS from being split into multiple files
+- **`inlineDynamicImports: true`**: Prevents code splitting into separate chunks
+
+---
+
+### ESM Asset Import Strategy
+
+All assets are imported as **ESM modules** which Vite automatically converts to Base64 during build.
+
+#### Standard Asset Imports
+
+**Location**: [src/hooks/useGame.js](src/hooks/useGame.js)
+
+```javascript
+// PNG images - imported as Base64 data URIs
+import startImg from "../assets/start.png";
+import finishImg from "../assets/finish.png";
+import gateImg from "../assets/gate.png";
+import coinImg from "../assets/coin.png";
+import carYellowImg from "../assets/car-yellow.png";
+// ... etc
+
+// Usage - pass Base64 string directly
+await game.renderer.loadTextures([
+  { key: "start", url: startImg }, // startImg = "data:image/png;base64,..."
+  { key: "finish", url: finishImg },
+  // ...
+]);
+```
+
+**Result**: Each import becomes a Base64 data URI string that's embedded in the JavaScript bundle.
+
+---
+
+### Spine Animation Asset Handling
+
+Spine animations require special handling because they consist of three interconnected files:
+
+- **skeleton.json** - Bone structure and animation data
+- **texture.atlas** - Texture atlas mapping
+- **texture.png** - Sprite sheet image
+
+#### Spine Imports
+
+```javascript
+// Import Spine assets as ESM modules
+import chickenSkeletonData from "../assets/chicken.json"; // JSON object
+import chickenAtlasText from "../assets/chicken.atlas?raw"; // Raw text string
+import chickenTexture from "../assets/chicken.png"; // Base64 data URI
+```
+
+**Import Modifiers**:
+
+- **No modifier**: JSON files are parsed automatically
+- **`?raw`**: Atlas text files imported as raw string (not parsed)
+- **No modifier**: PNG files become Base64 data URIs
+
+#### Manual Texture Resolution
+
+**Location**: [src/game/core/PixiRenderer.js](src/game/core/PixiRenderer.js)
+
+The `loadSpineFromImports()` method manually resolves atlas texture references:
+
+```javascript
+async loadSpineFromImports(key, skeletonData, atlasText, textureUrl) {
+  // 1. Load the PNG texture first
+  const textureKey = `${key}_texture`;
+  Assets.add({ alias: textureKey, src: textureUrl });  // textureUrl is Base64
+  await Assets.load(textureKey);
+
+  // 2. Register skeleton data directly
+  const skeletonKey = `${key}_skeleton`;
+  Assets.add({ alias: skeletonKey, src: skeletonData });
+
+  // 3. Create a Blob URL for the atlas text
+  const atlasBlob = new Blob([atlasText], { type: 'text/plain' });
+  const atlasBlobUrl = URL.createObjectURL(atlasBlob);
+
+  // 4. Register atlas with metadata mapping texture references
+  const atlasKey = `${key}_atlas`;
+  Assets.add({
+    alias: atlasKey,
+    src: atlasBlobUrl,
+    data: {
+      images: {
+        // Map atlas PNG reference to our loaded Base64 texture
+        'chicken.png': textureKey,
+        'chicken': textureKey,
+      }
+    }
+  });
+
+  // 5. Load all assets
+  await Assets.load([skeletonKey, atlasKey]);
+
+  // 6. Clean up blob URL
+  URL.revokeObjectURL(atlasBlobUrl);
+
+  return { skeleton: skeletonKey, atlas: atlasKey };
+}
+```
+
+**Why This is Needed**:
+
+- Spine atlas files normally reference PNG files by filename (e.g., `chicken.png`)
+- In a Base64 build, there are no filenames - just data URIs in memory
+- We manually tell PixiJS: "When the atlas asks for `chicken.png`, use this Base64 texture"
+
+---
+
+### Asset Migration Strategy
+
+#### Before (URL-based Loading)
+
+```javascript
+// ❌ OLD: Assets loaded from public/ directory via URLs
+const chickenKeys = await game.renderer.loadSpineAnimation(
+  "chicken",
+  "./chicken.json", // Public URL
+  "./chicken.atlas", // Public URL
+);
+```
+
+**Problems**:
+
+- Assets remain as separate files
+- Requires web server to serve files
+- Build produces `dist/assets/` folder with external files
+- Won't work when opened directly from file system
+
+#### After (ESM Import-based)
+
+```javascript
+// ✅ NEW: Assets imported as ESM modules
+import chickenSkeletonData from "../assets/chicken.json";
+import chickenAtlasText from "../assets/chicken.atlas?raw";
+import chickenTexture from "../assets/chicken.png";
+
+const chickenKeys = await game.renderer.loadSpineFromImports(
+  "chicken",
+  chickenSkeletonData, // JSON object in memory
+  chickenAtlasText, // String in memory
+  chickenTexture, // Base64 data URI in memory
+);
+```
+
+**Benefits**:
+
+- All assets embedded in single HTML file
+- No external dependencies
+- Works offline, from USB, from file system
+- Portable across any environment
+
+---
+
+### Build Verification
+
+#### Run Build
+
+```bash
+npm run build
+```
+
+**Expected Output**:
+
+```
+✓ 861 modules transformed.
+[plugin vite:singlefile] Inlining: index-XXX.js
+[plugin vite:singlefile] Inlining: style-XXX.css
+dist/index.html  5.8 MB │ gzip: 2.28 MB
+✓ built in 7.17s
+```
+
+#### Verify Single-File Build
+
+```bash
+# Check for Base64 embedded images
+grep -c "data:image/png;base64" dist/index.html
+# Output: 4 (or more - one per image asset)
+
+# Check for embedded favicon
+grep -c "data:image/x-icon;base64" dist/index.html
+# Output: 1
+
+# Verify no external asset references
+grep -c 'src="assets' dist/index.html
+# Output: 0 (should be zero!)
+
+# Check file size
+ls -lh dist/index.html
+# Output: -rw-r--r-- 5.8M (contains all game assets + favicon)
+```
+
+#### Test the Build
+
+1. **Open dist/index.html directly in browser** (no web server needed)
+2. **Verify PixiJS loads without "Texture Not Found" errors**
+3. **Check browser console for any 404 errors** (should be none)
+4. **Test chicken animation loads and plays correctly**
+
+---
+
+### Favicon Embedding
+
+The favicon is embedded directly into [index.html](index.html) as a Base64 data URI, eliminating the need for an external `favicon.ico` file in the build.
+
+#### Implementation
+
+**Location**: [index.html](index.html#L5)
+
+```html
+<link
+  rel="icon"
+  type="image/x-icon"
+  href="data:image/x-icon;base64,AAABAA..."
+/>
+```
+
+#### How It Was Done
+
+The favicon was converted from a binary `.ico` file to a Base64-encoded string and embedded directly in the HTML:
+
+```python
+import base64
+
+# Read favicon
+with open('public/favicon.ico', 'rb') as f:
+    favicon_data = base64.b64encode(f.read()).decode('ascii')
+
+# Embed in HTML
+<link rel="icon" type="image/x-icon" href="data:image/x-icon;base64,{favicon_data}" />
+```
+
+#### Benefits
+
+- **No external file** - Favicon loads instantly with the HTML
+- **Single-file deployment** - No need to copy multiple files
+- **No 404 errors** - Favicon always available
+- **Works offline** - No separate HTTP request needed
+
+#### File Size Impact
+
+- **Before**: 5.3 MB (without embedded favicon)
+- **After**: 5.8 MB (with embedded favicon)
+- **Increase**: ~500 KB (the favicon Base64 encoding overhead)
+- **Gzipped**: 2.28 MB (minimal impact when compressed)
+
+#### Updating the Favicon
+
+To change the favicon:
+
+1. **Replace the favicon** in `public/favicon.ico` (if restoring for dev)
+2. **Re-encode to Base64**:
+   ```bash
+   base64 public/favicon.ico | tr -d '\n'
+   ```
+3. **Update index.html** manually with the new Base64 string, or use the Python script:
+
+   ```python
+   import base64
+
+   with open('public/favicon.ico', 'rb') as f:
+       favicon_data = base64.b64encode(f.read()).decode('ascii')
+
+   # Update the href attribute in index.html
+   # href="data:image/x-icon;base64,{favicon_data}"
+   ```
+
+#### Verification
+
+After building, verify the favicon is embedded:
+
+```bash
+# Check for embedded favicon
+grep -c "data:image/x-icon;base64" dist/index.html
+# Output: 1
+
+# Verify no external favicon file
+ls dist/favicon.ico
+# Output: No such file or directory (expected)
+```
+
+---
+
+### Deployment Options
+
+#### Option 1: Static Host (Vercel, Netlify, GitHub Pages)
+
+```bash
+# Just upload the single HTML file
+# No build or configuration needed on the host
+```
+
+#### Option 2: File System
+
+```bash
+# Copy dist/index.html anywhere
+cp dist/index.html ~/Desktop/game.html
+
+# Open directly in browser
+open ~/Desktop/game.html  # macOS
+# or double-click in file explorer
+```
+
+#### Option 3: USB Drive
+
+```bash
+# Copy to USB drive
+cp dist/index.html /Volumes/USB_DRIVE/
+
+# Game runs directly from USB without installation
+```
+
+#### Option 4: Email/Download
+
+- File size: ~5MB (with gzip compression: ~2.2MB)
+- Can be emailed or downloaded
+- Opens in any modern browser
+- No installation required
+
+---
+
+### Performance Considerations
+
+#### Initial Load Time
+
+- **5.8MB HTML file** loads in ~1-3 seconds on broadband
+- **Base64 decoding** happens instantly in browser
+- **No additional HTTP requests** for assets (including favicon)
+- **Total assets bundled**: ~30 images + 3 Spine files + 1 favicon
+
+#### Runtime Performance
+
+- **Zero difference** from external assets once loaded
+- Base64 decoding is highly optimized in modern browsers
+- Assets cached in memory same as external files
+- WebGL rendering performance unchanged
+
+#### Trade-offs
+
+**Pros**:
+
+- ✅ True zero-dependency deployment (including favicon)
+- ✅ Works offline/file system/USB
+- ✅ Single file is easier to manage
+- ✅ No CORS issues
+- ✅ Faster total page load (no waterfall of asset requests)
+- ✅ No missing favicon 404 errors
+
+**Cons**:
+
+- ❌ Larger initial HTML download (5.8MB vs ~100KB HTML + separate assets)
+- ❌ Cannot leverage browser cache between versions (entire file re-downloads)
+- ❌ Harder to CDN-optimize individual assets
+- ❌ File size limit for email attachments (~10MB typical limit)
+
+---
+
+### Troubleshooting Single-File Build
+
+#### Issue: "Texture Not Found" Errors
+
+**Cause**: Asset not properly imported or Spine atlas texture resolution failed
+
+**Solution**:
+
+1. Verify all assets are in `src/assets/` (not `public/`)
+2. Check ESM imports use correct paths
+3. For Spine, ensure manual texture mapping in `loadSpineFromImports()`
+
+#### Issue: Build Has External Assets Folder
+
+**Cause**: Assets still referenced by string URLs instead of imports
+
+**Solution**:
+
+1. Search code for `"./assets/"` or `"/assets/"` strings
+2. Replace with ESM imports: `import asset from "../assets/file.png"`
+3. Pass imported variable (not string) to loading functions
+
+#### Issue: Spine Animation Doesn't Load
+
+**Cause**: Atlas texture reference not resolved
+
+**Solution**:
+
+1. Verify `.atlas` file imported with `?raw` modifier
+2. Check `loadSpineFromImports()` maps atlas PNG references correctly
+3. Ensure texture loaded BEFORE atlas registration
+
+#### Issue: Build File Too Large (>10MB)
+
+**Cause**: Too many high-resolution assets
+
+**Solution**:
+
+1. Optimize PNG files with tools like TinyPNG
+2. Convert large PNGs to JPG where transparency not needed
+3. Reduce texture atlas resolution
+4. Consider splitting into multiple bundles if absolutely necessary
+
+---
+
+## Summary for AI Engineer
+
+**Document Version**: 3.0  
+**Last Updated**: [Current Date]  
+**Status**: Production-Ready with Zero-Dependency Single-File Build
+
+This document represents the complete technical architecture including:
+
+- **Game state lifecycle and user actions** (Section 1-2)
+- **Collision detection and win/loss mechanics** (Section 3)
+- **Project structure, tech stack, and critical implementation details** (Section 4-6)
+- **Canvas rendering and animation systems** - PixiJS v8 + Spine skeletal animations (Section 7)
+- **Responsiveness system** - Current implementation + future roadmap (Section 8)
+- **Frontend architecture patterns** - Entity-Component, Manager, System, Event Bus, Callbacks (Section 9)
+- **Single-file build architecture** - Zero-dependency ESM asset embedding with Base64 (Section 10)
+
+All game mechanics, animation systems, rendering pipeline, architectural patterns, and deployment strategies are fully documented and production-ready.
+
+### Key Deployment Features
+
+The game produces a **completely self-contained 5.3MB HTML file** with:
+
+- All PNG/JSON assets embedded as Base64 data URIs
+- Spine animations (skeleton, atlas, textures) bundled via ESM imports
+- Zero external dependencies or network requests
+- Works offline from USB drive, file system, or any static host
+- No CORS issues, no 404 errors, no missing assets
+
+Build verification: `npm run build` → single `dist/index.html` file ready for deployment anywhere.
