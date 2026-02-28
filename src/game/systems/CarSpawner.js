@@ -260,7 +260,6 @@ export class CarSpawner {
    */
   enableCollisions() {
     this.collisionsEnabled = true;
-    console.log("✅ Collisions ENABLED");
   }
 
   /**
@@ -268,7 +267,6 @@ export class CarSpawner {
    */
   disableCollisions() {
     this.collisionsEnabled = false;
-    console.log("❌ Collisions DISABLED");
   }
 
   /**
@@ -350,14 +348,6 @@ export class CarSpawner {
         // Set car z-index higher than coins (coins are at 100)
         car.container.zIndex = 150;
         this.entityManager.stage.addChild(car.container);
-
-        // Debug logging for first game
-        console.log("🚗 FORCED CAR SPAWNED (First Game)");
-        console.log("Lane:", lane.index, "(3rd coin line)");
-        console.log("Spawn position:", { x: spawnX, y: spawnY });
-        console.log("Speed:", guaranteedSpeed);
-        console.log("Chicken Y:", chickenCurrentY);
-        console.log("Distance to travel:", distanceToTravel);
       } catch (e) {
         console.warn("Failed to add forced car to stage:", e);
       }
@@ -774,14 +764,6 @@ export class CarSpawner {
       // CRITICAL: The car that caused collision continues moving (not stopped)
       // Car momentum is maintained - car.update() continues to be called
       this.hasCollided = true;
-
-      // Debug logging for first game
-      if (this.firstGameForcedLossActive) {
-        console.log("🚗 COLLISION DETECTED (First Game)");
-        console.log("Car lane:", car.lane, "Chicken lane:", chickenLaneIndex);
-        console.log("Car bounds:", carWorldBounds);
-        console.log("Chicken bounds:", chickenWorldBounds);
-      }
 
       if (this.onCollision) {
         this.onCollision();

@@ -300,6 +300,7 @@
 .difficulty-level-angle {
   width: 2.5rem;
   height: 2.5rem;
+  transition: transform 0.2s;
 }
 
 .difficulty-level-angle path {
@@ -325,7 +326,11 @@
   border-radius: 0.6rem;
   box-shadow: rgba(0, 0, 0, 0.25) 0 0.299rem 0.3987rem 0;
   background: rgb(84, 84, 84);
-  padding: 2rem 2rem 0 2rem;
+  padding-inline: 2rem;
+}
+
+.difficulty-level-content[open] ~ .difficulty-level-angle {
+  transform: rotate(180deg);
 }
 
 .difficulty-level-option {
@@ -337,7 +342,7 @@
   display: flex;
   align-items: center;
   gap: 2rem;
-  margin-bottom: 2rem;
+  padding-block: 1rem;
 }
 
 .difficulty-level-option:hover {

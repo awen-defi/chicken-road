@@ -1,8 +1,11 @@
 import { useRef } from "react";
 import "./menu.css";
+import { useOutsideClick } from "../../hooks";
+import inoutLogo from "../../assets/inoutLogo.svg";
 
 export function Menu({ openHowToPlayModal }) {
   const dropdownRef = useRef(null);
+  const menuRef = useRef(null);
 
   const handleClick = () => {
     if (dropdownRef.current) {
@@ -14,8 +17,16 @@ export function Menu({ openHowToPlayModal }) {
     }
   };
 
+  const handleClose = () => {
+    if (dropdownRef.current.open) {
+      dropdownRef.current.close();
+    }
+  };
+
+  useOutsideClick(dropdownRef, handleClose, menuRef);
+
   return (
-    <div className="menu-button" onClick={handleClick}>
+    <div className="menu-button" onClick={handleClick} ref={menuRef}>
       <svg
         width="18"
         height="18"
@@ -262,7 +273,7 @@ function Dropdown({ ref, openHowToPlayModal }) {
         <span className="MenuLine"></span>
         <div className="MenuItem">
           <span className="PoweredText">Powered by</span>
-          <span className="LogoInout"></span>
+          <img src={inoutLogo} alt="Inout Logo" className="LogoInout" />
         </div>
       </div>
     </dialog>

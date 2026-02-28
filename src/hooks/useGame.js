@@ -129,7 +129,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           ]);
           poleTexture = poleResult.light || poleResult["light"];
         } catch {
-          console.log("Light pole texture not available (optional)");
+          console.error("Light pole texture not available (optional)");
         }
 
         // Load optional finish banner texture separately (decorative only)
@@ -141,7 +141,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           finishBannerTexture =
             bannerResult["carpet"] || bannerResult["carpet"];
         } catch {
-          console.log("Finish banner texture not available (optional)");
+          console.error("Finish banner texture not available (optional)");
         }
 
         // Load Spine animation for chicken with error handling
@@ -474,9 +474,6 @@ export function useGame(canvasRef, config, scrollContainerRef) {
       // Lane 0 = sidewalk, Lane 1 = 1st line, Lane 2 = 2nd line, Lane 3 = 3rd line
       // This creates a guaranteed collision on the player's first game at the 3rd line
       if (currentLane === 2 && nextLane === 3 && game.carSpawner) {
-        console.log(
-          "🐔 Chicken jumping from lane 2 to lane 3 - triggering forced spawn",
-        );
         game.carSpawner.forceSpawnForFirstGame();
       }
 
