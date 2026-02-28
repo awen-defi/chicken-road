@@ -41,7 +41,10 @@ export class PixiRenderer {
     this.BASE_LOGICAL_HEIGHT = 1080;
 
     // Zoom multiplier for better visibility (1.25x enlargement)
-    this.ZOOM_MULTIPLIER = 1.25;
+    this.ZOOM_MULTIPLIER = 1.5;
+
+    // Vertical focal point (0.55 = 55% from top, moves chicken slightly below center)
+    this.VERTICAL_FOCAL_POINT = 0.75;
 
     // Current scale and viewport state
     this.currentScale = 1;
@@ -368,8 +371,8 @@ export class PixiRenderer {
    * Called EVERY FRAME in the game ticker
    * CRITICAL: No interpolation, no smoothing - direct mathematical binding
    *
-   * Math: worldContainer.y = viewportMid - (chicken.y * scale)
-   * This ensures chicken's screen position is EXACTLY viewportMid regardless of its logical Y
+   * Math: worldContainer.y = verticalFocalPoint - (chicken.y * scale)
+   * This ensures chicken's screen position is EXACTLY at verticalFocalPoint regardless of its logical Y
    */
   updateCamera() {
     if (!this.worldContainer || !this.cameraTarget) return;
@@ -378,9 +381,9 @@ export class PixiRenderer {
     // This prevents NaN or 0 values during initialization
     if (this.viewportHeight <= 0 || this.currentScale <= 0) return;
 
-    // HARD-LOCK: Chicken must appear at EXACTLY 50% of viewport height
+    // HARD-LOCK: Chicken positioned at vertical focal point (55% = slightly below center)
     // No lerp, no smoothing, no tweens - pure mathematical lock
-    const viewportMid = this.viewportHeight / 2;
+    const verticalFocalPoint = this.viewportHeight * this.VERTICAL_FOCAL_POINT;
 
     // Calculate chicken's scaled position in world space
     // The scale MUST be the current scale (updated by updateViewport)
@@ -393,7 +396,8 @@ export class PixiRenderer {
     // DIRECT SLAVE BINDING (No Interpolation):
     // Camera position = f(chicken.y, currentScale) - computed every single frame
     // NO lerp, NO smoothing, NO deltaTime - chicken and camera move as ONE unit
-    this.worldContainer.y = viewportMid - chickenScaledY + this.cameraOffsetY;
+    this.worldContainer.y =
+      verticalFocalPoint - chickenScaledY + this.cameraOffsetY;
   }
 
   /**

@@ -220,7 +220,9 @@ export function useGame(canvasRef, config, scrollContainerRef) {
 
         // CRITICAL ALIGNMENT: Scenery must share the same Y baseline as the road
         // This ensures Start/Finish edges perfectly align with Road edges
-        const sceneryY = roadY; // Align scenery with road (no offset)
+        // Lift scenery upward for better visual composition (proportional to scale)
+        const SCENERY_LIFT_OFFSET = 500; // Lift scenery by 30 logical pixels
+        const sceneryY = roadY - SCENERY_LIFT_OFFSET; // Lift scenery above road baseline
 
         // Create entities with Pixi texture
 
