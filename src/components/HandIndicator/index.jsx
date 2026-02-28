@@ -21,8 +21,18 @@ export const HandIndicator = memo(function HandIndicator({
 
       if (button && handRef.current) {
         const rect = button.getBoundingClientRect();
-        // Position hand 80px left of button, centered vertically
-        handRef.current.style.left = `${rect.left - 80}px`;
+
+        // Position based on target button
+        if (targetButton === "GO") {
+          // GO button: hand points from left to right (80px left of button)
+          handRef.current.style.left = `${rect.left - 80}px`;
+          handRef.current.classList.remove("pointing-left");
+        } else {
+          // CASHOUT button: hand points from right to left (80px right of button)
+          handRef.current.style.left = `${rect.right + 80}px`;
+          handRef.current.classList.add("pointing-left");
+        }
+
         handRef.current.style.top = `${rect.top + rect.height / 2 - 30}px`;
       }
     };

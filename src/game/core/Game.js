@@ -325,12 +325,12 @@ export class Game {
     this.winNotificationSprite = new PIXI.Sprite(notificationTexture);
     this.winNotificationSprite.anchor.set(0.5, 0.5);
 
-    // Create "Win!" header text (PixiJS v8 format)
+    // Create "Win!" header text (PixiJS v8 format) - will be scaled adaptively
     this.winHeaderText = new PIXI.Text({
       text: "Win!",
       style: {
         fontFamily: "Montserrat, sans-serif",
-        fontSize: 32, // 80% of win amount size (40 * 0.8 = 32)
+        fontSize: 32, // Base size - will be scaled
         fontWeight: "bold",
         fill: "#ffffff",
         dropShadow: {
@@ -343,12 +343,12 @@ export class Game {
     });
     this.winHeaderText.anchor.set(0.5, 0.5);
 
-    // Create text for win amount with coin styling (PixiJS v8 format)
+    // Create text for win amount with coin styling (PixiJS v8 format) - will be scaled adaptively
     this.winAmountText = new PIXI.Text({
       text: "$0.00",
       style: {
         fontFamily: "Montserrat, sans-serif",
-        fontSize: 40,
+        fontSize: 40, // Base size - will be scaled
         fontWeight: "bold",
         fill: "#ffffff", // Gold color like coins
         dropShadow: {
@@ -382,22 +382,36 @@ export class Game {
   }
 
   /**
-   * Position win display at top center
+   * Position win display at top center with adaptive scaling
    */
   positionWinDisplay() {
     if (!this.winDisplay || !this.renderer || !this.renderer.app) return;
 
     // Get the visible viewport dimensions from the container element
     let viewportWidth = 800; // Default fallback
+    let viewportHeight = 600; // Default fallback
+
     if (this.containerElement) {
       viewportWidth = this.containerElement.clientWidth;
+      viewportHeight = this.containerElement.clientHeight;
     } else if (this.canvas) {
       // Fallback to canvas parent container
       const parent = this.canvas.parentElement;
       if (parent) {
         viewportWidth = parent.clientWidth;
+        viewportHeight = parent.clientHeight;
       }
     }
+
+    // Calculate adaptive scale based on viewport size
+    // Scale down for small screens (mobile), keep normal for large screens
+    const baseWidth = 800; // Reference width for normal scale
+    const scaleX = Math.min(1, viewportWidth / baseWidth);
+    const scaleY = Math.min(1, viewportHeight / 600); // Reference height
+    const adaptiveScale = Math.min(scaleX, scaleY) * 0.8; // 0.8 = slightly smaller for better fit
+
+    // Apply adaptive scale to the entire display
+    this.winDisplay.scale.set(adaptiveScale);
 
     // Get current stage offset (world scrolling)
     const stageX = this.renderer.app.stage.x || 0;
@@ -405,7 +419,7 @@ export class Game {
     // Position at center of visible viewport, compensating for stage scroll
     // The notification should appear at the center of what the user can see
     this.winDisplay.position.x = -stageX + viewportWidth / 2;
-    this.winDisplay.position.y = 100; // Fixed 100px from top
+    this.winDisplay.position.y = 100 * adaptiveScale; // Scale top position too
 
     // Position texts within the notification sprite (vertically stacked)
     if (

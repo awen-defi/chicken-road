@@ -20,6 +20,11 @@ export class Coin extends BaseEntity {
 
     this.width = 144; // Base size (will be overridden by dynamic scaling)
     this.height = 144; // Base size (will be overridden by dynamic scaling)
+
+    // Flip animation state
+    this.isFlipping = false;
+    this.flipProgress = 0;
+    this.flipDuration = 0.4; // 400ms flip animation (match jump duration)
   }
 
   /**
@@ -91,36 +96,81 @@ export class Coin extends BaseEntity {
   }
 
   /**
-   * Turn coin to gold
+   * Turn coin to gold with flip animation
    */
   turnGold() {
     if (this.isGold || !this.sprite || !this.goldTexture) return;
 
-    this.isGold = true;
-    this.sprite.texture = this.goldTexture;
+    // Start flip animation
+    this.isFlipping = true;
+    this.flipProgress = 0;
 
-    // Hide the number text on gold coins
-    if (this.text) {
-      this.text.visible = false;
-    }
+    // Gold conversion will happen at 50% of flip (when coin is edge-on)
+    setTimeout(() => {
+      if (this.sprite && !this.isGold) {
+        this.isGold = true;
+        this.sprite.texture = this.goldTexture;
+
+        // Hide the number text on gold coins
+        if (this.text) {
+          this.text.visible = false;
+        }
+      }
+    }, this.flipDuration * 500); // 50% of flip duration
   }
 
   /**
-   * Show or hide the coin
+   * Show or hide the coin with flip animation when hiding
    */
   setVisible(visible) {
+    const wasVisible = this.visible;
     this.visible = visible;
+
     if (this.container) {
-      this.container.visible = visible;
+      // If hiding coin (collected), start flip animation
+      if (wasVisible && !visible && !this.isGold) {
+        this.isFlipping = true;
+        this.flipProgress = 0;
+
+        // Hide coin after flip animation completes
+        setTimeout(() => {
+          if (this.container) {
+            this.container.visible = false;
+          }
+        }, this.flipDuration * 1000);
+      } else {
+        // Show immediately or if already gold
+        this.container.visible = visible;
+      }
     }
   }
 
   /**
-   * Update coin state
+   * Update coin state with flip animation
    */
   update(deltaTime) {
     super.update(deltaTime);
-    // Coins are static, no animation needed
+
+    // Handle flip animation
+    if (this.isFlipping && this.container) {
+      this.flipProgress += deltaTime / this.flipDuration;
+
+      if (this.flipProgress >= 1) {
+        // Animation complete
+        this.flipProgress = 1;
+        this.isFlipping = false;
+        this.container.scale.x = Math.abs(this.container.scale.x); // Ensure positive scale
+      } else {
+        // Animate flip: scale X from 1 to 0 to 1 (creates flip effect)
+        // Use cosine for smooth flip
+        const flipScale = Math.abs(Math.cos(this.flipProgress * Math.PI));
+        const currentScaleY = this.container.scale.y;
+        this.container.scale.set(
+          flipScale > 0 ? flipScale : 0.01,
+          currentScaleY,
+        );
+      }
+    }
   }
 
   /**
