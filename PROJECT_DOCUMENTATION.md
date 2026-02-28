@@ -14,18 +14,22 @@
 6. [Tech Stack Integration](#5-tech-stack-integration)
 7. [Critical Implementation Details](#6-critical-implementation-details)
 8. [Canvas & Animation Architecture](#7-canvas--animation-architecture)
-9. [Responsiveness System - Vertical-Anchor Adaptive Viewport](#8-responsiveness-system---vertical-anchor-adaptive-viewport)
+9. [Canvas, Adaptive Sizing & Discrete Lane-Grid Camera System](#8-canvas-adaptive-sizing--discrete-lane-grid-camera-system)
    - [Architecture Overview](#architecture-overview)
    - [System Components](#system-components)
-   - [Vertical-Anchor Scaling Strategy](#vertical-anchor-scaling-strategy)
-   - [Atomic Viewport Updates](#atomic-viewport-updates)
-   - [Frame-Perfect Camera System](#frame-perfect-camera-system)
+   - [Visual Positioning Constants](#visual-positioning-constants)
+   - [Vertical-Anchor Scaling Strategy](#vertical-anchor-scaling-strategy-height-only-scaling)
+   - [Discrete Lane-Grid Camera System](#discrete-lane-grid-camera-system-x-axis-positioning)
+   - [Vertical Camera (Y-Axis): Hard-Locked Tracking](#vertical-camera-y-axis-hard-locked-tracking)
+   - [Dual-Axis Camera Summary](#dual-axis-camera-summary)
+   - [Device Support Matrix](#device-support-matrix)
+   - [Coin Opacity System](#coin-opacity-system)
    - [Real-Time Resize Detection](#real-time-resize-detection)
    - [Call Chain Visualization](#call-chain-visualization)
-   - [Device Support Matrix](#device-support-matrix)
    - [Performance Characteristics](#performance-characteristics)
    - [Testing and Verification](#testing-and-verification)
    - [Troubleshooting Guide](#troubleshooting-guide)
+   - [Summary for AI Engineers](#summary-for-ai-engineers)
 10. [Frontend Architecture Patterns](#9-frontend-architecture-patterns)
 11. [Single-File Build Architecture](#10-single-file-build-architecture)
 
@@ -49,36 +53,45 @@
 
 **For UI/Responsiveness Work**:
 
-- [Responsiveness System - Vertical-Anchor Adaptive Viewport](#8-responsiveness-system---vertical-anchor-adaptive-viewport) - Complete viewport system
-- [Vertical-Anchor Scaling Strategy](#vertical-anchor-scaling-strategy) - Height-only scaling formula
-- [Frame-Perfect Camera System](#frame-perfect-camera-system) - Zero-lag camera tracking
+- [Canvas, Adaptive Sizing & Discrete Lane-Grid Camera System](#8-canvas-adaptive-sizing--discrete-lane-grid-camera-system) - Complete dual-axis camera system
+- [Visual Positioning Constants](#visual-positioning-constants) - VERTICAL_FOCAL_POINT, ZOOM_MULTIPLIER, SCENERY_LIFT_OFFSET
+- [Vertical-Anchor Scaling Strategy](#vertical-anchor-scaling-strategy-height-only-scaling) - Height-only scaling formula
+- [Discrete Lane-Grid Camera System](#discrete-lane-grid-camera-system-x-axis-positioning) - Deterministic X-axis positioning
+- [Frame-Perfect Jump Synchronization](#frame-perfect-synchronization-during-jumps) - Zero-lag camera tracking
 - [Device Support Matrix](#device-support-matrix) - Universal device compatibility
+- [Coin Opacity System](#coin-opacity-system) - Progressive coin visibility
 
 **For Architecture Understanding**:
 
 - [Frontend Architecture Patterns](#9-frontend-architecture-patterns) - Design patterns used
 - [Tech Stack Integration](#5-tech-stack-integration) - React + PixiJS communication
+- [Dual-Axis Camera Summary](#dual-axis-camera-summary) - X-axis discrete grid + Y-axis hard-locked tracking
 
 **For Debugging**:
 
 - [Critical Implementation Details](#6-critical-implementation-details) - Common gotchas and fixes
+- [Troubleshooting Guide](#troubleshooting-guide) - Camera, resize, and positioning issues
 - [Critical Code Locations](#critical-code-locations) - Quick file/line reference
 
 ### Common Tasks Quick Links
 
-| Task                    | Key Files                                                                                    | Key Functions                                           |
-| ----------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| Add new game state      | [App.jsx](src/App.jsx), [Game.js](src/game/core/Game.js)                                     | `handlePlay()`, `update()`                              |
-| Modify jump behavior    | [Chicken.js](src/game/entities/Chicken.js), [useGame.js](src/hooks/useGame.js)               | `jumpTo()`, `jumpChicken()`                             |
-| Adjust collision        | [CarSpawner.js](src/game/systems/CarSpawner.js)                                              | `checkCarChickenCollision()`                            |
-| Change spawn timing     | [CarSpawner.js](src/game/systems/CarSpawner.js)                                              | `spawnCar()`, `update()`                                |
-| Add new animation       | [Chicken.js](src/game/entities/Chicken.js)                                                   | `setSpine()`, Spine state calls                         |
-| Adjust viewport scaling | [PixiRenderer.js](src/game/core/PixiRenderer.js)                                             | `updateViewport()`, `updateCamera()`                    |
-| Change zoom multiplier  | [PixiRenderer.js](src/game/core/PixiRenderer.js#L46-L47)                                     | `BASE_LOGICAL_HEIGHT`, `ZOOM_MULTIPLIER` constants      |
-| Fix camera tracking     | [PixiRenderer.js](src/game/core/PixiRenderer.js), [Game.js](src/game/core/Game.js#L227-L230) | `updateCamera()`, `setCameraTarget()`                   |
-| Debug resize issues     | [useResponsiveCanvas.js](src/hooks/useResponsiveCanvas.js)                                   | `handleResize()`, ResizeObserver setup                  |
-| Modify multipliers      | [CoinManager.js](src/game/managers/CoinManager.js)                                           | `getCurrentMultiplier()`                                |
-| Add new entity          | [entities/](src/game/entities/)                                                              | Extend [BaseEntity.js](src/game/entities/BaseEntity.js) |
+| Task                    | Key Files                                                                                                | Key Functions                                           |
+| ----------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| Add new game state      | [App.jsx](src/App.jsx), [Game.js](src/game/core/Game.js)                                                 | `handlePlay()`, `update()`                              |
+| Modify jump behavior    | [Chicken.js](src/game/entities/Chicken.js), [useGame.js](src/hooks/useGame.js)                           | `jumpTo()`, `jumpChicken()`, `calculateWorldPosition()` |
+| Adjust collision        | [CarSpawner.js](src/game/systems/CarSpawner.js)                                                          | `checkCarChickenCollision()`                            |
+| Change spawn timing     | [CarSpawner.js](src/game/systems/CarSpawner.js)                                                          | `spawnCar()`, `update()`                                |
+| Add new animation       | [Chicken.js](src/game/entities/Chicken.js)                                                               | `setSpine()`, Spine state calls                         |
+| Adjust viewport scaling | [PixiRenderer.js](src/game/core/PixiRenderer.js)                                                         | `updateViewport()`, `updateCamera()`                    |
+| Change zoom multiplier  | [PixiRenderer.js](src/game/core/PixiRenderer.js#L44)                                                     | `ZOOM_MULTIPLIER` constant (1.5)                        |
+| Change vertical focal   | [PixiRenderer.js](src/game/core/PixiRenderer.js#L47)                                                     | `VERTICAL_FOCAL_POINT` constant (0.75)                  |
+| Fix X-axis camera       | [useGame.js](src/hooks/useGame.js), [Chicken.js](src/game/entities/Chicken.js)                           | `calculateWorldPosition()`, `update()`                  |
+| Fix Y-axis camera       | [PixiRenderer.js](src/game/core/PixiRenderer.js), [Game.js](src/game/core/Game.js#L227-L230)             | `updateCamera()`, `setCameraTarget()`                   |
+| Debug camera desync     | [Chicken.js](src/game/entities/Chicken.js#L320-L425)                                                     | Check easeProgress used for both chicken.x and stage.x  |
+| Debug resize issues     | [useGame.js](src/hooks/useGame.js#L524-L552), [useResponsiveCanvas.js](src/hooks/useResponsiveCanvas.js) | `updateCameraOnResize()`, `handleResize()`              |
+| Modify coin opacity     | [CoinManager.js](src/game/managers/CoinManager.js#L172-L188)                                             | `updateCoinVisibility()`                                |
+| Modify multipliers      | [CoinManager.js](src/game/managers/CoinManager.js)                                                       | `getCurrentMultiplier()`                                |
+| Add new entity          | [entities/](src/game/entities/)                                                                          | Extend [BaseEntity.js](src/game/entities/BaseEntity.js) |
 
 ### Architecture at a Glance
 
@@ -2057,37 +2070,202 @@ this.container.addChild(graphics);
 
 ---
 
-## 8. Responsiveness System - Vertical-Anchor Adaptive Viewport
+## 8. Canvas, Adaptive Sizing & Discrete Lane-Grid Camera System
 
 ### Architecture Overview
 
-The game implements a **Vertical-Anchor Adaptive Viewport System** that provides:
+The game implements a **Discrete Lane-Grid Camera System** with **Vertical-Anchor Adaptive Viewport** that provides:
 
-✅ **Real-time resize response** - Instant visual updates with no refresh required  
-✅ **Frame-perfect camera tracking** - Zero lag between chicken movement and viewport  
+✅ **Deterministic camera positioning** - Lane index mathematically determines camera position (no interpolation)  
+✅ **Frame-perfect synchronization** - Camera and chicken movement use identical easing progress  
+✅ **Finish-line soft-stop** - Automatic constraint prevents showing black space beyond finish  
+✅ **Real-time resize recovery** - Instant repositioning using same formula as gameplay  
 ✅ **Height-based scaling** - Optimized for horizontal scrolling gameplay  
 ✅ **Universal device support** - From mobile portrait to ultrawide desktop  
-✅ **1.25x visibility zoom** - Enhanced readability across all devices
+✅ **1.5x visibility zoom** - Enhanced readability (ZOOM_MULTIPLIER = 1.5)
 
-**Core Philosophy**: The viewport height is the master constraint. Canvas scales ONLY by height (ignoring width) and is always left-aligned, allowing the horizontally-scrollable game world to extend infinitely to the right.
+**Core Philosophy**: The camera is a **mathematical slave** to the chicken's lane position. It's not a separate entity that follows the chicken - it's a lens fixed to a discrete grid where position = f(laneIndex). The viewport height is the master constraint for scaling. Canvas scales ONLY by height (ignoring width) and world scrolling happens via discrete lane-based positioning.
 
 ---
 
 ### System Components
 
-The responsiveness system is distributed across multiple components:
+The camera and viewport system is distributed across multiple components:
 
-| Component               | Purpose                                     | Location                                                           |
-| ----------------------- | ------------------------------------------- | ------------------------------------------------------------------ |
-| **PixiRenderer**        | Viewport scaling and camera tracking (core) | [PixiRenderer.js](src/game/core/PixiRenderer.js#L320-L387)         |
-| **useResponsiveCanvas** | Resize detection and game orchestration     | [useResponsiveCanvas.js](src/hooks/useResponsiveCanvas.js#L24-L56) |
-| **Game**                | Bridge between React and PixiJS             | [Game.js](src/game/core/Game.js#L592-L596)                         |
-| **useGame**             | Initial viewport setup after asset loading  | [useGame.js](src/hooks/useGame.js#L355-L356)                       |
-| **CanvasGameArea**      | Canvas DOM integration and ref management   | [CanvasGameArea.jsx](src/components/GameArea/CanvasGameArea.jsx)   |
+| Component                            | Purpose                                               | Location                                                         |
+| ------------------------------------ | ----------------------------------------------------- | ---------------------------------------------------------------- |
+| **PixiRenderer**                     | Viewport scaling, vertical positioning, Y-axis camera | [PixiRenderer.js](src/game/core/PixiRenderer.js)                 |
+| **useGame (calculateWorldPosition)** | Discrete lane-grid formula (X-axis camera)            | [useGame.js](src/hooks/useGame.js#L487-L522)                     |
+| **Chicken.update()**                 | Frame-perfect camera sync during jumps                | [Chicken.js](src/game/entities/Chicken.js#L320-L430)             |
+| **useResponsiveCanvas**              | Resize detection and game orchestration               | [useResponsiveCanvas.js](src/hooks/useResponsiveCanvas.js)       |
+| **updateCameraOnResize**             | Resize handler using discrete grid formula            | [useGame.js](src/hooks/useGame.js#L524-L552)                     |
+| **CanvasGameArea**                   | Canvas DOM integration and ref management             | [CanvasGameArea.jsx](src/components/GameArea/CanvasGameArea.jsx) |
 
 ---
 
-### Vertical-Anchor Scaling Strategy
+### Visual Positioning Constants
+
+The game uses carefully tuned constants for optimal visual composition:
+
+#### Vertical Focal Point (Y-Axis Camera)
+
+**Location**: [PixiRenderer.js](src/game/core/PixiRenderer.js#L47)
+
+```javascript
+this.VERTICAL_FOCAL_POINT = 0.75; // Chicken at 75% from top (lower third of screen)
+```
+
+**Why 0.75 (not 0.5)?**
+
+- **Forward visibility**: Chicken positioned in lower third provides maximum visibility ahead
+- **Road perspective**: Mimics natural driving games where road extends upward
+- **Mobile optimization**: More game world visible above chicken on tall screens
+- **Gameplay advantage**: Players see approaching cars/gates/coins earlier
+
+**Visual Effect**:
+
+```
+┌─────────────────────────┐
+│                         │ ← Top of viewport (0%)
+│  🚗 Car (approaching)   │
+│  💰 Coin (ahead)        │
+│  🚧 Gate (visible)      │ ← 50% midpoint
+│                         │
+│  🐔 Chicken (player)    │ ← 75% from top (VERTICAL_FOCAL_POINT)
+│  ════════════════       │ ← Road beneath
+│                         │
+└─────────────────────────┘
+```
+
+**Mathematical Application**:
+
+```javascript
+// updateCamera() in PixiRenderer.js
+const verticalFocalPoint = this.viewportHeight * this.VERTICAL_FOCAL_POINT;
+//                         = 1080px * 0.75 = 810px (on 1080p display)
+
+this.worldContainer.y =
+  verticalFocalPoint - chickenScaledY + this.cameraOffsetY;
+```
+
+#### Scenery Lift Offset
+
+**Location**: [useGame.js](src/hooks/useGame.js#L228)
+
+```javascript
+const SCENERY_LIFT_OFFSET = 350; // Lift start/finish images 350 logical pixels above road
+```
+
+**Purpose**: Places start and finish scenery images **above** the road baseline for visual separation
+
+**Why 350 pixels?**
+
+- Prevents scenery from overlapping with first/last lanes
+- Creates clear visual distinction between decorative scenery and playable road
+- Ensures coins and gates on edge lanes remain fully visible
+- Provides "aerial view" perspective of start/finish zones
+
+**Visual Layout**:
+
+```
+Vertical Position:
+┌─────────────────────────┐
+│  🏁 FINISH IMAGE        │ ← roadY - 350px (lifted)
+├─────────────────────────┤
+│  Lane 8: 💰🚗          │ ← roadY (baseline)
+│  Lane 7: 💰🚗          │
+│  Lane 6: 💰🚗          │
+│  ... (middle lanes)     │
+│  Lane 1: 💰🚗          │
+├─────────────────────────┤
+│  🏠 START IMAGE         │ ← roadY - 350px (lifted)
+└─────────────────────────┘
+```
+
+#### Zoom Multiplier (Global Scale)
+
+**Location**: [PixiRenderer.js](src/game/core/PixiRenderer.js#L44)
+
+```javascript
+this.ZOOM_MULTIPLIER = 1.5; // 1.5x enlargement for better visibility
+```
+
+**Why 1.5x (not 1.0x or 1.25x)?**
+
+- **Readability**: Makes all entities 50% larger than baseline design
+- **Mobile-first**: Compensates for small physical screen sizes on phones
+- **Accessibility**: Easier to see cars, coins, gates for players with vision impairments
+- **Aesthetic**: Prevents game from looking "too small" on large desktop monitors
+
+**Scale Calculation Examples**:
+
+```javascript
+// Mobile Portrait (375x667)
+scale = (667 / 1080) * 1.5 = 0.926 (93% of baseline, still readable)
+
+// Desktop HD (1920x1080)
+scale = (1080 / 1080) * 1.5 = 1.5 (150% of baseline, comfortable)
+
+// 4K Monitor (3840x2160)
+scale = (2160 / 1080) * 1.5 = 3.0 (300% of baseline, very large)
+```
+
+#### Start Image Texture Clipping
+
+**Location**: [useGame.js](src/hooks/useGame.js#L192-L195)
+
+```javascript
+const startClipWidth = startTextureWidth * 0.6; // Show only 60% of image width
+const startClipRect = new Rectangle(
+  startTextureWidth * 0.3, // Clip left 30%
+  0,
+  startClipWidth, // Show center 60%
+  startTextureHeight,
+);
+```
+
+**Purpose**: Removes left and right edges of start image, showing only the center portion
+
+**Why clip the start image?**
+
+- **Lane width uniformity**: Original start image includes road edges, making first lane appear wider
+- **Clean transition**: Center portion blends seamlessly with first road lane
+- **Visual consistency**: All road lanes now have identical visual width
+
+**Clipping Breakdown**:
+
+```
+Original Start Image (100%):
+├────────┬────────────────┬────────┤
+│ Left   │  Center (60%)  │ Right  │
+│ Edge   │   VISIBLE      │ Edge   │
+│ (30%)  │   ✓ Shown      │ (10%)  │
+│ ✗ Clip │                │ ✗ Clip │
+└────────┴────────────────┴────────┘
+         ↑                 ↑
+         Clip at 30%       Clip at 90%
+```
+
+#### Scenery Scale
+
+**Location**: [useGame.js](src/hooks/useGame.js#L188)
+
+```javascript
+const sceneryScale = 0.9; // Scale start/finish images to 90% for "zoomed out" effect
+```
+
+**Purpose**: Makes start and finish images appear slightly smaller, creating visual depth
+
+**Why 0.9 (not 1.0)?**
+
+- **Zoom-out feeling**: Larger game world, more spacious presentation
+- **Prevents cramping**: Reduces visual clutter near start/finish zones
+- **Depth perception**: Smaller scenery = appears farther from camera
+- **Proportional balance**: Matches road width and lane spacing better
+
+---
+
+### Vertical-Anchor Scaling Strategy (Height-Only Scaling)
 
 #### Why Vertical-Anchor (Height-Only)?
 
@@ -2095,16 +2273,17 @@ The responsiveness system is distributed across multiple components:
 
 - Player moves through lanes from left (start) to right (finish)
 - Viewport shows a "window" into the wider game world
-- Horizontal width is NOT a constraint - game can extend beyond screen edges
+- Horizontal width is NOT a constraint - game extends beyond screen edges
 - Only height matters - ensures chicken, cars, coins are properly visible
 
 **Advantages**:
 
 1. **Mobile portrait support**: Game scales down to fit tall narrow screens
 2. **Ultrawide desktop support**: Game extends right without letter-boxing
-3. **Consistent visibility**: All entities remain same vertical size
+3. **Consistent vertical visibility**: All entities maintain same vertical size
 4. **No horizontal dead space**: No black bars or wasted screen space
-5. **Camera simplicity**: Only need to track Y-axis (vertical centering)
+5. **Simplified Y-axis camera**: Only need to track Y-axis (VERTICAL_FOCAL_POINT)
+6. **Discrete X-axis control**: Lane-grid system handles horizontal positioning deterministically
 
 #### The Scaling Formula
 
@@ -2117,34 +2296,296 @@ this.currentScale =
 
 // Constants
 this.BASE_LOGICAL_HEIGHT = 1080; // Logical design height
-this.ZOOM_MULTIPLIER = 1.25; // 1.25x zoom for better visibility
+this.ZOOM_MULTIPLIER = 1.5; // 1.5x zoom for better visibility (was 1.25x)
 ```
 
 **Mathematical Breakdown**:
 
 ```
-Scale = (ViewportHeight / 1080) × 1.25
+Scale = (ViewportHeight / 1080) × 1.5
 
 Examples:
-- 1080px viewport height → scale = (1080/1080) × 1.25 = 1.25
-- 720px viewport height  → scale = (720/1080) × 1.25 = 0.833
-- 540px viewport height  → scale = (540/1080) × 1.25 = 0.625
-- 1440px viewport height → scale = (1440/1080) × 1.25 = 1.667
+- 1080px viewport height → scale = (1080/1080) × 1.5 = 1.50
+- 720px viewport height  → scale = (720/1080) × 1.5 = 1.00
+- 540px viewport height  → scale = (540/1080) × 1.5 = 0.75
+- 1440px viewport height → scale = (1440/1080) × 1.5 = 2.00
+- 2160px (4K) height     → scale = (2160/1080) × 1.5 = 3.00
 ```
 
-**Why 1.25x Zoom?**
+**Why 1.5x Zoom? (Updated from 1.25x)**
 
-- **Better visibility**: Makes entities 25% larger than baseline
-- **Mobile readability**: Compensates for small screen physical sizes
-- **Desktop appeal**: Avoids game looking "too small" on large displays
-- **Accessibility**: Improves visibility for players with vision impairments
+- **Enhanced visibility**: Makes entities 50% larger than baseline (was 25%)
+- **Mobile readability**: Better compensates for small screen physical sizes
+- **Desktop appeal**: Game feels more immersive, not "tiny" on large displays
+- **Accessibility**: Significantly improves visibility for players with vision impairments
+- **Modern standard**: Aligns with current game design trends (larger UI elements)
 
 **Viewport Independence**:
 
 - Width is **completely ignored** in the scaling calculation
-- Wide screens show more of the game world horizontally
-- Narrow screens show less, but game remains playable
-- This is intentional - the game is designed to scroll horizontally
+- Wide screens show more of the game world horizontally (more lanes visible)
+- Narrow screens show less, but game remains playable (fewer lanes visible)
+- This is intentional - the game is designed to scroll horizontally via discrete lane-grid
+
+---
+
+### Discrete Lane-Grid Camera System (X-Axis Positioning)
+
+This is the **most critical architectural component** of the camera system. Unlike traditional smooth-following cameras, this system uses **deterministic mathematical positioning** based on discrete lane indices.
+
+#### Core Concept: Camera as a Mathematical Slave
+
+**Traditional Camera Approach (❌ NOT USED)**:
+
+```javascript
+// BAD: Camera follows chicken with smoothing/interpolation
+camera.x = lerp(camera.x, chicken.x - screenWidth / 2, 0.1);
+// Problems: lag, desync, unpredictable, requires tuning
+```
+
+**Our Discrete Grid Approach (✅ USED)**:
+
+```javascript
+// GOOD: Camera position = f(laneIndex) - pure function, zero lag
+targetWorldX = CHICKEN_SCREEN_X - laneIndex * LANE_WIDTH;
+if (laneIndex > 0) targetWorldX -= START_ZONE_WIDTH;
+worldContainer.x = Math.max(targetWorldX, maxScroll); // Finish-line constraint
+```
+
+**Benefits**:
+
+- **Zero lag**: Position calculated directly from state, no interpolation delay
+- **Frame-perfect sync**: Chicken and camera use identical easing during jumps
+- **Deterministic**: Same input (lane index) → same output (camera position) every time
+- **Resize-safe**: Window resize uses EXACT SAME formula as gameplay
+- **No tuning**: No smoothing factors, lerp speeds, or magic numbers to tweak
+- **Predictable**: Easier to debug, test, and reason about
+
+#### The calculateWorldPosition Formula
+
+**Location**: [useGame.js](src/hooks/useGame.js#L487-L522)
+
+```javascript
+/**
+ * DISCRETE LANE-GRID CAMERA SYSTEM
+ * Pure mathematical function: State (laneIndex) → Screen Position (worldX)
+ * This formula runs during jumps AND during window resizes for deterministic positioning
+ */
+const calculateWorldPosition = useCallback(
+  (laneIndex, containerWidth, canvasWidth) => {
+    // Constants: Chicken fixed at left side of screen
+    const CHICKEN_SCREEN_X = containerWidth * 0.1; // 10% from left edge
+    const laneWidth = laneWidthRef.current;
+    const startWidth = startWidthRef.current;
+
+    let targetWorldX;
+
+    if (laneIndex === 0) {
+      // Lane 0 (start): No world movement yet
+      targetWorldX = 0;
+    } else {
+      // Lane 1+: Discrete grid positioning
+      // Formula: Align current lane's left edge with CHICKEN_SCREEN_X
+      const roadLaneIndex = laneIndex - 1; // 0-based road lane (0 = first road lane)
+      const laneLeftEdge = startWidth + roadLaneIndex * laneWidth;
+      targetWorldX = -(laneLeftEdge - CHICKEN_SCREEN_X);
+    }
+
+    // FINISH-LINE CONSTRAINT: Prevent showing black space beyond finish
+    const maxScroll = -(canvasWidth - containerWidth);
+    const clampedWorldX = Math.max(targetWorldX, maxScroll);
+
+    return {
+      worldX: clampedWorldX,
+      chickenScreenX: CHICKEN_SCREEN_X,
+      isAtFinishBoundary: clampedWorldX === maxScroll,
+    };
+  },
+  [],
+);
+```
+
+**Formula Breakdown**:
+
+```
+Goal: Keep chicken at fixed screen position (10% from left), scroll world behind it
+
+Step 1: Calculate chicken's fixed screen X
+  CHICKEN_SCREEN_X = containerWidth × 0.10
+  Example: 1920px container → 192px from left edge
+
+Step 2: Calculate target lane's left edge in world space
+  laneLeftEdge = startWidth + (laneIndex - 1) × laneWidth
+  Example: Lane 3 with startWidth=400, laneWidth=200
+    → laneLeftEdge = 400 + (3-1)×200 = 800px
+
+Step 3: Calculate world offset to align lane edge with chicken screen X
+  targetWorldX = -(laneLeftEdge - CHICKEN_SCREEN_X)
+  Example: -(800 - 192) = -608px
+  Meaning: Shift world left 608px to align lane 3's edge with chicken
+
+Step 4: Apply finish-line constraint (prevent black space)
+  maxScroll = -(canvasWidth - containerWidth)
+  Example: Canvas 3000px, container 1920px → maxScroll = -1080px
+  clampedWorldX = Math.max(targetWorldX, maxScroll)
+  If targetWorldX = -1500px, clamp to -1080px (stop at finish)
+```
+
+**Visual Representation**:
+
+```
+Viewport (containerWidth = 1920px):
+┌──────────────────────────────────────────┐
+│ 🐔 ←192px→                               │ ← Chicken at 10% from left
+│    (CHICKEN_SCREEN_X)                    │
+└──────────────────────────────────────────┘
+
+World Container (shifted left via worldContainer.x):
+                     ┌─────────────────────────────────────────────────┐
+                     │ START │ L1 │ L2 │ L3 │ L4 │ L5 │ L6 │ L7 │ FINISH │
+                     │  400  │200 │200 │200 │200 │200 │200 │200 │  300  │
+                     └─────────────────────────────────────────────────┘
+                            ↑
+                            Lane 3 left edge at 800px
+
+When laneIndex = 3:
+  targetWorldX = -(800 - 192) = -608px
+  Result: Shift world left 608px, so lane 3's left edge aligns with chicken at 192px
+```
+
+**Lane 0 Special Case**:
+
+```javascript
+if (laneIndex === 0) {
+  targetWorldX = 0; // No world movement at start
+}
+```
+
+- At the start zone (lane 0), world position stays at 0
+- Chicken jumps horizontally across start zone
+- World scrolling begins ONLY when jumping FROM lane 0 TO lane 1
+
+**Finish-Line Soft-Stop**:
+
+```javascript
+const maxScroll = -(canvasWidth - containerWidth);
+const clampedWorldX = Math.max(targetWorldX, maxScroll);
+```
+
+- **Purpose**: Prevent camera from scrolling past finish line, showing black space
+- **Math**: Maximum leftward shift = -(total world width - viewport width)
+- **Effect**: When chicken reaches finish, camera stops scrolling but chicken continues moving right
+
+**Example**:
+
+```
+Canvas: 3000px total width
+Viewport: 1920px
+
+maxScroll = -(3000 - 1920) = -1080px
+
+If formula calculates targetWorldX = -1500px (past finish):
+  clampedWorldX = Math.max(-1500, -1080) = -1080px
+  Camera stops at -1080px, finish line stays on screen
+```
+
+#### Frame-Perfect Synchronization During Jumps
+
+**The Challenge**: During a jump animation, chicken moves from lane A to lane B over ~0.7 seconds with easing. The camera must move **in perfect sync** with the chicken using the SAME easing progress.
+
+**Old Approach (❌ CAUSED DESYNC)**:
+
+```javascript
+// Chicken.js update() - OLD
+chickenX = startX + (endX - startX) * easeProgress; // Chicken position
+cameraOffset = startOffset + (endOffset - startOffset) * easeProgress; // Camera offset
+
+// Problem: Two independent calculations from same easeProgress
+// Small floating-point differences → visual desync
+```
+
+**New Approach (✅ FRAME-PERFECT SYNC)**:
+
+**Location**: [Chicken.js](src/game/entities/Chicken.js#L280-L425)
+
+```javascript
+/**
+ * Jump to a target X position with discrete lane-grid camera system
+ * @param {Object} worldAnimationData - Data for discrete grid movement
+ *   - stage: PixiJS stage (worldContainer parent)
+ *   - startWorldX: Camera world X at jump start (stage.x value)
+ *   - endWorldX: Camera world X at jump end (from calculateWorldPosition)
+ *   - fixedViewportX: Chicken's fixed screen position (CHICKEN_SCREEN_X)
+ *   - currentLane: Lane index at jump start
+ *   - targetLane: Lane index at jump end
+ */
+jumpTo(targetX, shouldMoveWorld = false, worldAnimationData = null, onComplete = null) {
+  if (this.isJumping) return;
+
+  this.isJumping = true;
+  this.jumpStartX = this.x;
+  this.jumpEndX = targetX;
+  this.jumpProgress = 0;
+  this.shouldMoveWorld = shouldMoveWorld;
+  this.onJumpComplete = onComplete;
+
+  // Set up DISCRETE GRID world movement
+  // Camera is frame-locked to chicken using discrete lane-grid formula
+  if (shouldMoveWorld && worldAnimationData) {
+    this.stage = worldAnimationData.stage;
+    this.startWorldX = worldAnimationData.startWorldX; // Direct stage.x value
+    this.endWorldX = worldAnimationData.endWorldX;     // Direct stage.x value
+    this.fixedViewportX = worldAnimationData.fixedViewportX;
+  }
+}
+
+update(deltaTime) {
+  if (this.isJumping) {
+    this.jumpProgress += deltaTime / this.jumpDuration;
+
+    if (this.jumpProgress >= 1) {
+      // Jump complete - snap to final positions
+      this.x = this.jumpEndX;
+
+      if (this.shouldMoveWorld && this.stage) {
+        this.stage.x = this.endWorldX; // Final discrete grid position
+      }
+
+      this.isJumping = false;
+      if (this.onJumpComplete) this.onJumpComplete();
+
+    } else {
+      // Mid-jump - interpolate with easing
+      const easeProgress = this.easeInOutQuad(this.jumpProgress);
+
+      // Update chicken position
+      this.x = this.jumpStartX + (this.jumpEndX - this.jumpStartX) * easeProgress;
+
+      // FRAME-PERFECT CAMERA SYNC: Use SAME easeProgress value
+      if (this.shouldMoveWorld && this.stage) {
+        const currentWorldX =
+          this.startWorldX + (this.endWorldX - this.startWorldX) * easeProgress;
+        this.stage.x = currentWorldX; // Camera moves in PERFECT SYNC
+      }
+
+      // Position chicken at fixed screen location
+      if (this.shouldMoveWorld && this.fixedViewportX !== null) {
+        this.container.position.x = this.fixedViewportX;
+      } else {
+        this.container.position.x = this.x;
+      }
+    }
+  }
+}
+```
+
+**Key Points**:
+
+1. **Single easeProgress source**: Both chicken and camera use IDENTICAL `easeProgress` value
+2. **Direct interpolation**: Camera position = `startWorldX + (endWorldX - startWorldX) * easeProgress`
+3. **No separate animation**: Camera doesn't have its own animation loop, it's bound to chicken's progress
+4. **Atomic updates**: Chicken X and stage X updated in SAME frame, SAME function call
+5. **Zero lag guarantee**: Mathematically impossible to desync (both use same math, same frame)
 
 ---
 
@@ -2215,82 +2656,164 @@ this.worldContainer.x = 0; // ALWAYS LEFT-ALIGNED
 - Horizontal scrolling happens via entity positions, NOT container offset
 - This is critical for horizontal scrolling games
 
+**How Jump Animation Works**:
+
+```
+Frame 0 (Jump Start):
+  useGame.js:
+    - calculateWorldPosition(currentLane) → startWorldX = -400px
+    - calculateWorldPosition(targetLane) → endWorldX = -600px
+    - chicken.jumpTo(targetX, shouldMoveWorld, worldAnimationData)
+
+  Chicken.js:
+    - Store startWorldX = -400px, endWorldX = -600px
+    - jumpProgress = 0
+
+Frame N (Mid-Jump, jumpProgress = 0.5):
+  Chicken.js update():
+    - easeProgress = easeInOutQuad(0.5) = 0.5 (simplified)
+    - chicken.x = startX + (endX - startX) * 0.5
+    - stage.x = -400 + (-600 - -400) * 0.5 = -500px
+    - Result: Chicken and camera both 50% through animation
+
+Frame Final (Jump End, jumpProgress = 1.0):
+  Chicken.js update():
+    - chicken.x = jumpEndX
+    - stage.x = endWorldX = -600px
+    - isJumping = false
+    - onJumpComplete() called
+```
+
+**Why This Works**:
+
+- Both chicken and camera read from SAME `easeProgress` variable
+- Both calculations happen in SAME function call (Chicken.update)
+- Both updates apply to PixiJS in SAME render frame
+- No separate camera update loop that could fall behind
+- No async/await, no promises, no callbacks between chicken and camera
+
+#### Resize Handler: Same Formula, Instant Recovery
+
+**Location**: [useGame.js](src/hooks/useGame.js#L524-L552)
+
+```javascript
+/**
+ * Update camera position on resize to maintain chicken at left side
+ * CRITICAL: Uses EXACT SAME formula as calculateWorldPosition
+ */
+const updateCameraOnResize = useCallback(() => {
+  const game = gameRef.current;
+  const chicken = chickenRef.current;
+  const currentLane = currentLaneRef.current;
+
+  if (!game || !chicken || currentLane < 1 || !scrollContainerRef?.current) {
+    return; // Only adjust if game is active and in world-move mode
+  }
+
+  const stage = game.renderer?.app?.stage;
+  if (!stage) return;
+
+  const container = scrollContainerRef.current;
+  const containerWidth = container.clientWidth;
+  const canvasWidth = canvasWidthRef.current;
+
+  // Use the SAME discrete grid formula (deterministic)
+  const { worldX, chickenScreenX } = calculateWorldPosition(
+    currentLane,
+    containerWidth,
+    canvasWidth,
+  );
+
+  // Update chicken's screen position
+  if (chicken.container) {
+    chicken.container.position.x = chickenScreenX;
+    chicken.fixedViewportX = chickenScreenX;
+  }
+
+  // Apply world position (instant, no interpolation)
+  stage.x = worldX;
+}, [scrollContainerRef, calculateWorldPosition]);
+```
+
+**Key Points**:
+
+1. **Same formula**: Calls `calculateWorldPosition()` with current lane index
+2. **No separate logic**: NOT a different calculation for resize vs gameplay
+3. **Instant update**: No smooth transition, immediate repositioning
+4. **Deterministic**: Given same lane + new container width → correct camera position
+5. **Connected to ResizeObserver**: Triggered automatically on window resize
+
+**Resize Flow**:
+
+```
+User drags window edge
+     ↓
+ResizeObserver fires (useResponsiveCanvas.js)
+     ↓
+requestAnimationFrame(() => {
+  game.updateViewport(newWidth, newHeight);  // PixiRenderer handles Y-axis
+  updateCameraOnResize();                     // useGame handles X-axis
+})
+     ↓
+Result: Chicken stays at relative position (10% from left, 75% from top)
+        Camera maintains correct discrete grid alignment
+```
+
 ---
 
-### Frame-Perfect Camera System
+### Vertical Camera (Y-Axis): Hard-Locked Tracking
 
-The camera uses **hard-locked tracking** with zero interpolation to eliminate all lag.
+While the discrete lane-grid system handles **horizontal (X-axis)** camera positioning, the **vertical (Y-axis)** camera uses a different system: hard-locked tracking to keep the chicken at a fixed vertical screen position.
 
-#### Camera Update Locations
+#### Y-Axis Camera Formula
 
-The camera is updated in **TWO critical places**:
-
-1. **After viewport resize** (immediate synchronization)
-2. **Every game frame** (60+ FPS continuous tracking)
-
-**Location 1**: [PixiRenderer.updateViewport()](src/game/core/PixiRenderer.js#L353)
+**Location**: [PixiRenderer.js](src/game/core/PixiRenderer.js#L363-L400)
 
 ```javascript
-updateViewport(viewportWidth, viewportHeight) {
-  // ... atomic operations ...
-
-  // SYNCHRONIZE CAMERA IMMEDIATELY
-  // Must call updateCamera() HERE to prevent frame-delay desync
-  this.updateCamera();
-}
-```
-
-**Location 2**: [Game.update()](src/game/core/Game.js#L227-L230)
-
-```javascript
-update(deltaTime) {
-  // ... update entities ...
-
-  // Update camera EVERY FRAME (runs at 60+ FPS)
-  if (this.renderer) {
-    this.renderer.updateCamera();
-  }
-}
-```
-
-#### Hard-Locked Camera Formula
-
-**Location**: [PixiRenderer.updateCamera()](src/game/core/PixiRenderer.js#L363-L387)
-
-```javascript
+/**
+ * FRAME-PERFECT CAMERA UPDATE (Hard-Locked Vertical Tracking)
+ * Called EVERY FRAME in the game ticker
+ * CRITICAL: No interpolation, no smoothing - direct mathematical binding
+ *
+ * Math: worldContainer.y = verticalFocalPoint - (chicken.y * scale)
+ * This ensures chicken's screen position is EXACTLY at verticalFocalPoint
+ */
 updateCamera() {
   if (!this.worldContainer || !this.cameraTarget) return;
 
   // Safeguard: Ensure viewport dimensions are valid
-  // This prevents NaN or 0 values during initialization
   if (this.viewportHeight <= 0 || this.currentScale <= 0) return;
 
-  // ━━━ HARD-LOCK: Chicken must appear at EXACTLY 50% of viewport height ━━━
+  // HARD-LOCK: Chicken positioned at vertical focal point (75% from top)
   // No lerp, no smoothing, no tweens - pure mathematical lock
-  const viewportMid = this.viewportHeight / 2;
+  const verticalFocalPoint = this.viewportHeight * this.VERTICAL_FOCAL_POINT;
 
   // Calculate chicken's scaled position in world space
-  // The scale MUST be the current scale (updated by updateViewport)
   const chickenScaledY = this.cameraTarget.y * this.currentScale;
 
-  // ━━━ INVERSE TRANSFORM: Move world container opposite to chicken movement ━━━
-  // When chicken moves UP (+Y in logical space), world moves DOWN (-Y in screen space)
+  // INVERSE TRANSFORM: Move world container opposite to chicken movement
+  // When chicken moves UP (+Y in logical), world moves DOWN (-Y in screen)
   // This creates the illusion of camera following
-  this.worldContainer.y = viewportMid - chickenScaledY + this.cameraOffsetY;
+  //
+  // DIRECT SLAVE BINDING (No Interpolation):
+  // Camera position = f(chicken.y, currentScale) - computed every frame
+  // NO lerp, NO smoothing, NO deltaTime - chicken and camera move as ONE
+  this.worldContainer.y =
+    verticalFocalPoint - chickenScaledY + this.cameraOffsetY;
 }
 ```
 
 **Mathematical Derivation**:
 
 ```
-Goal: Keep chicken at screen Y = viewportHeight / 2 (center)
+Goal: Keep chicken at screen Y = viewportHeight × VERTICAL_FOCAL_POINT
 
 Screen space equation:
   chickenScreenY = worldContainer.y + (chicken.y * scale)
 
-Set chickenScreenY = viewportMid and solve for worldContainer.y:
-  viewportMid = worldContainer.y + (chicken.y * scale)
-  worldContainer.y = viewportMid - (chicken.y * scale)
+Set chickenScreenY = verticalFocalPoint and solve for worldContainer.y:
+  verticalFocalPoint = worldContainer.y + (chicken.y * scale)
+  worldContainer.y = verticalFocalPoint - (chicken.y * scale)
 
 This is an INVERSE TRANSFORM:
   chicken moves UP → worldContainer moves DOWN
@@ -2305,21 +2828,21 @@ Most games use smooth camera tracking:
 // ❌ TRADITIONAL APPROACH (introduces lag)
 const targetY = calculateTargetY();
 const smoothingFactor = 0.1;
-camera.y += (targetY - camera.y) * smoothingFactor; // Lerp
+camera.y += (targetY - camera.y) * smoothingFactor; // Lerp/interpolation
 ```
 
 **Problems with smoothing**:
 
 - Creates visual lag between player input and camera response
 - Adds complexity (smoothing factor tuning)
-- Causes "rubber-band" effect when player changes direction quickly
-- Inconsistent frame-to-frame behavior
+- Causes "rubber-band" effect when player changes direction
+- Inconsistent frame-to-frame behavior (depends on frame rate)
 
 **Our approach (direct binding)**:
 
 ```javascript
 // ✅ OUR APPROACH (zero lag)
-worldContainer.y = viewportMid - chickenScaledY; // Direct calculation
+worldContainer.y = verticalFocalPoint - chickenScaledY; // Direct calculation
 ```
 
 **Benefits**:
@@ -2327,32 +2850,71 @@ worldContainer.y = viewportMid - chickenScaledY; // Direct calculation
 - **Zero lag**: Camera responds instantly to chicken movement
 - **Frame-perfect**: Camera and chicken move in perfect synchronization
 - **Predictable**: Identical behavior every frame, no tuning needed
-- **Simple**: No smoothing variables, no edge cases
+- **Simple**: No smoothing variables, no edge cases, no magic numbers
 
-#### Camera Target Setup
+#### Camera Update Locations
 
-The camera target is set during game initialization.
+The **Y-axis camera** (vertical positioning) is updated in **TWO critical places**:
 
-**Location**: [useGame.js](src/hooks/useGame.js#L342-L343)
+1. **After viewport resize** (immediate synchronization)
+2. **Every game frame** (60+ FPS continuous tracking)
+
+**Location 1**: [PixiRenderer.updateViewport()](src/game/core/PixiRenderer.js#L353)
 
 ```javascript
-// Set camera to follow chicken with 0 vertical offset
-game.renderer.setCameraTarget(chicken, 0);
+updateViewport(viewportWidth, viewportHeight) {
+  // ... atomic operations (resize canvas, scale worldContainer) ...
 
-// Set camera target in PixiRenderer
-setCameraTarget(target, offsetY = 0) {
-  this.cameraTarget = target;       // Chicken entity
-  this.cameraOffsetY = offsetY;     // Vertical offset (0 = centered)
+  // SYNCHRONIZE Y-AXIS CAMERA IMMEDIATELY
+  // Must call updateCamera() HERE to prevent frame-delay desync
+  this.updateCamera();
 }
 ```
 
-**Offset Usage**:
+**Location 2**: [Game.update()](src/game/core/Game.js#L227-L230)
 
 ```javascript
-// Example: Offset chicken 100px above center
-game.renderer.setCameraTarget(chicken, 100);
-// Result: Chicken appears at (viewportHeight/2) + 100
+update(deltaTime) {
+  // ... update entities ...
+
+  // Update Y-axis camera EVERY FRAME (runs at 60+ FPS)
+  if (this.renderer) {
+    this.renderer.updateCamera();
+  }
+}
 ```
+
+**Why Two Locations?**
+
+- **updateViewport()**: Ensures camera position immediately recalculates when scale changes (resize)
+- **Game.update()**: Keeps camera locked to chicken during normal gameplay (every frame)
+
+---
+
+### Dual-Axis Camera Summary
+
+The game uses **TWO independent camera systems** working simultaneously:
+
+| Axis  | System               | Updated By                          | Formula                                             |
+| ----- | -------------------- | ----------------------------------- | --------------------------------------------------- |
+| **X** | Discrete Lane-Grid   | Chicken.update() during jumps       | `worldX = -(laneLeftEdge - CHICKEN_SCREEN_X)`       |
+| **X** | Discrete Lane-Grid   | updateCameraOnResize() on resize    | `worldX = -(laneLeftEdge - CHICKEN_SCREEN_X)`       |
+| **Y** | Hard-Locked Tracking | PixiRenderer.updateCamera() (60fps) | `worldY = verticalFocalPoint - (chicken.y * scale)` |
+| **Y** | Hard-Locked Tracking | PixiRenderer.updateViewport()       | `worldY = verticalFocalPoint - (chicken.y * scale)` |
+
+**X-Axis (Horizontal Scrolling)**:
+
+- **Discrete**: Position based on integer lane index (0, 1, 2, ...)
+- **Grid-based**: Each lane has deterministic camera position
+- **Jump-synced**: Camera interpolates during jumps using same easeProgress as chicken
+- **Finish-clamped**: Stops scrolling when finish line reached (no black space)
+
+**Y-Axis (Vertical Positioning)**:
+
+- **Continuous**: Position based on chicken's Y coordinate (float)
+- **Hard-locked**: Chicken always at 75% from top of viewport
+- **Frame-perfect**: Updates every frame (60+ FPS)
+- **Zero-lag**: Direct mathematical binding, no interpolation
 
 ---
 
@@ -2465,7 +3027,7 @@ setTimeout(() => game.resize(width, height), 100);
 
 ### Call Chain Visualization
 
-#### Complete Resize Flow
+#### Complete Resize Flow (Both X and Y Axis Camera)
 
 ```
 User Action: Drag window edge
@@ -2500,23 +3062,46 @@ User Action: Drag window edge
 │  Method: updateViewport(viewportWidth, viewportHeight)         │
 │   ↓                                                             │
 │  ATOMIC OPERATION 1: renderer.resize(width, height)            │
-│  ATOMIC OPERATION 2: currentScale = (height/1080) * 1.25       │
+│  ATOMIC OPERATION 2: currentScale = (height/1080) * 1.5        │
 │  ATOMIC OPERATION 3: worldContainer.scale.set(currentScale)    │
 │   ↓                                                             │
-│  Set worldContainer.x = 0 (left-align)                         │
+│  worldContainer.x stays at current discrete grid position      │
+│  (NOT reset to 0 - managed by discrete lane-grid system)       │
 │   ↓                                                             │
 │  Call updateCamera() ────────────────────┐                     │
 │                                           ↓                     │
-│  Method: updateCamera()                                        │
+│  Method: updateCamera() [Y-AXIS ONLY]                          │
 │   ↓                                                             │
+│  Calculate: verticalFocalPoint = viewportHeight * 0.75         │
 │  Calculate: chickenScaledY = chicken.y * currentScale          │
-│  Calculate: worldContainer.y = viewportMid - chickenScaledY    │
+│  Calculate: worldContainer.y = verticalFocalPoint - chickenScaledY │
+└────────────────────────────────────────────────────────────────┘
+     ↓
+┌────────────────────────────────────────────────────────────────┐
+│ React Hook Layer (useGame.js)                                  │
+├────────────────────────────────────────────────────────────────┤
+│  Method: updateCameraOnResize() [X-AXIS ONLY]                  │
+│   ↓                                                             │
+│  Get currentLane, containerWidth, canvasWidth                  │
+│   ↓                                                             │
+│  Call calculateWorldPosition(currentLane, containerWidth, canvasWidth) │
+│   ↓                                                             │
+│  Discrete Grid Formula:                                        │
+│    laneLeftEdge = startWidth + (laneIndex-1) * laneWidth      │
+│    targetWorldX = -(laneLeftEdge - CHICKEN_SCREEN_X)          │
+│    maxScroll = -(canvasWidth - containerWidth)                 │
+│    clampedWorldX = Math.max(targetWorldX, maxScroll)          │
+│   ↓                                                             │
+│  Apply: stage.x = clampedWorldX                                │
+│  Apply: chicken.container.position.x = CHICKEN_SCREEN_X       │
 └────────────────────────────────────────────────────────────────┘
      ↓
 Result: Instant visual update (no refresh required)
+        - Y-axis: Chicken at 75% from top
+        - X-axis: Chicken at 10% from left with correct lane aligned
 ```
 
-#### Every Frame Camera Update
+#### Every Frame Y-Axis Camera Update
 
 ```
 PixiJS Ticker fires (60+ FPS)
@@ -2529,8 +3114,8 @@ PixiJS Ticker fires (60+ FPS)
 │  Update chicken position (if jumping)                          │
 │  Update cars, coins, other entities                            │
 │   ↓                                                             │
-│  Call renderer.updateCamera() ──────────┐                      │
-└────────────────────────────────────────────┬───────────────────┘
+│  Call renderer.updateCamera() [Y-AXIS ONLY] ──┐                │
+└────────────────────────────────────────────────┴───────────────┘
                                            ↓
 ┌────────────────────────────────────────────────────────────────┐
 │ PixiJS Rendering Layer (PixiRenderer.js)                       │
@@ -2539,44 +3124,120 @@ PixiJS Ticker fires (60+ FPS)
 │   ↓                                                             │
 │  Safeguard: Check viewportHeight > 0 && currentScale > 0       │
 │   ↓                                                             │
-│  Calculate: viewportMid = viewportHeight / 2                   │
+│  Calculate: verticalFocalPoint = viewportHeight * 0.75         │
 │  Calculate: chickenScaledY = cameraTarget.y * currentScale     │
-│  Calculate: worldContainer.y = viewportMid - chickenScaledY    │
+│  Calculate: worldContainer.y = verticalFocalPoint - chickenScaledY │
 │   ↓                                                             │
 │  PixiJS renders updated scene to canvas                        │
 └────────────────────────────────────────────────────────────────┘
      ↓
-Result: Chicken remains perfectly centered at 50% viewport height
+Result: Chicken remains at 75% from top (lower third of viewport)
+```
+
+#### Jump Animation Camera Update (X-Axis Discrete Grid Sync)
+
+```
+User Action: Click Forward button / Press Arrow key
+     ↓
+┌────────────────────────────────────────────────────────────────┐
+│ React Component Layer (App.jsx)                                │
+├────────────────────────────────────────────────────────────────┤
+│  handleGoForward() → jumpChicken(direction="forward")          │
+└────────────────────────────────────────────────────────────────┘
+     ↓
+┌────────────────────────────────────────────────────────────────┐
+│ React Hook Layer (useGame.js - jumpChicken)                    │
+├────────────────────────────────────────────────────────────────┤
+│  Determine nextLane (currentLane + 1)                          │
+│   ↓                                                             │
+│  Calculate discrete grid positions for START and END:          │
+│    startPosition = calculateWorldPosition(currentLane, ...)    │
+│    endPosition = calculateWorldPosition(nextLane, ...)         │
+│   ↓                                                             │
+│  Create worldAnimationData:                                    │
+│    - startWorldX: Current stage.x position                     │
+│    - endWorldX: Target stage.x position (discrete grid)        │
+│    - fixedViewportX: CHICKEN_SCREEN_X (10% from left)          │
+│   ↓                                                             │
+│  Call chicken.jumpTo(targetX, shouldMoveWorld, worldAnimationData) │
+└────────────────────────────────────────────────────────────────┘
+     ↓
+┌────────────────────────────────────────────────────────────────┐
+│ Entity Layer (Chicken.js - jumpTo)                             │
+├────────────────────────────────────────────────────────────────┤
+│  Store animation data:                                         │
+│    - jumpStartX, jumpEndX (chicken's logical positions)        │
+│    - startWorldX, endWorldX (camera positions)                 │
+│    - jumpProgress = 0                                          │
+│   ↓                                                             │
+│  Set isJumping = true                                          │
+└────────────────────────────────────────────────────────────────┘
+     ↓
+┌────────────────────────────────────────────────────────────────┐
+│ Every Frame During Jump (Chicken.js - update)                  │
+├────────────────────────────────────────────────────────────────┤
+│  jumpProgress += deltaTime / jumpDuration                      │
+│   ↓                                                             │
+│  easeProgress = easeInOutQuad(jumpProgress)  [SHARED VALUE]    │
+│   ↓                                                             │
+│  ━━━ FRAME-PERFECT SYNC (same easeProgress for both) ━━━       │
+│                                                                 │
+│  Update chicken position:                                      │
+│    chicken.x = startX + (endX - startX) * easeProgress         │
+│   ↓                                                             │
+│  Update camera position (X-axis):                              │
+│    currentWorldX = startWorldX + (endWorldX - startWorldX) * easeProgress │
+│    stage.x = currentWorldX                                     │
+│   ↓                                                             │
+│  Set chicken screen position:                                  │
+│    chicken.container.position.x = fixedViewportX               │
+│                                                                 │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
+│                                                                 │
+│  Result: Chicken and camera move IN PERFECT SYNC               │
+│          Both use IDENTICAL easeProgress value                 │
+│          Zero possibility of desync                            │
+└────────────────────────────────────────────────────────────────┘
+
+Frame-Perfect Guarantee:
+  ✓ Single easeProgress source
+  ✓ Both calculations in SAME function
+  ✓ Both updates in SAME frame
+  ✓ No separate animation loops
+  ✓ Zero lag mathematically guaranteed
 ```
 
 ---
 
 ### Device Support Matrix
 
-The vertical-anchor system provides universal support across all device categories:
+The vertical-anchor system with discrete lane-grid camera provides universal support across all device categories:
 
-| Device Type          | Screen Size         | Viewport Height | Scale | Behavior                                  |
-| -------------------- | ------------------- | --------------- | ----- | ----------------------------------------- |
-| **Mobile Portrait**  | 375x667 (iPhone SE) | 667px           | 0.772 | Scales down, shows ~3 lanes               |
-| **Mobile Landscape** | 667x375 (iPhone SE) | 375px           | 0.434 | Scales down significantly, tight fit      |
-| **Tablet Portrait**  | 768x1024 (iPad)     | 1024px          | 1.185 | Scales up slightly, comfortable view      |
-| **Tablet Landscape** | 1024x768 (iPad)     | 768px           | 0.889 | Scales down slightly, shows more lanes    |
-| **Desktop HD**       | 1920x1080 (Full HD) | 1080px          | 1.250 | Baseline scale (1.25x zoom)               |
-| **Desktop 4K**       | 3840x2160 (4K)      | 2160px          | 2.500 | Scales up 2x, very large entities         |
-| **Ultrawide**        | 3440x1440           | 1440px          | 1.667 | Scales up, shows many lanes horizontally  |
-| **Mobile Tall**      | 375x812 (iPhone X)  | 812px           | 0.940 | Scales slightly down, good vertical space |
+| Device Type          | Screen Size         | Viewport Height | Scale | Behavior                                     |
+| -------------------- | ------------------- | --------------- | ----- | -------------------------------------------- |
+| **Mobile Portrait**  | 375x667 (iPhone SE) | 667px           | 0.926 | Scales down, shows ~3 lanes, comfortable     |
+| **Mobile Landscape** | 667x375 (iPhone SE) | 375px           | 0.521 | Scales down significantly, tight fit         |
+| **Tablet Portrait**  | 768x1024 (iPad)     | 1024px          | 1.422 | Scales up, very comfortable view             |
+| **Tablet Landscape** | 1024x768 (iPad)     | 768px           | 1.067 | Baseline scale, shows many lanes             |
+| **Desktop HD**       | 1920x1080 (Full HD) | 1080px          | 1.500 | Baseline × 1.5x zoom, optimal                |
+| **Desktop 4K**       | 3840x2160 (4K)      | 2160px          | 3.000 | Scales up 2x, very large entities            |
+| **Ultrawide**        | 3440x1440           | 1440px          | 2.000 | Scales up, shows many lanes horizontally     |
+| **Mobile Tall**      | 375x812 (iPhone X)  | 812px           | 1.128 | Scales slightly up, excellent vertical space |
 
-**Scale Calculation Examples**:
+**Scale Calculation Examples** (with ZOOM_MULTIPLIER = 1.5):
 
 ```javascript
 // Mobile Portrait (375x667)
-scale = (667 / 1080) * 1.25 = 0.772
+scale = (667 / 1080) * 1.5 = 0.926
 
 // Desktop HD (1920x1080)
-scale = (1080 / 1080) * 1.25 = 1.250
+scale = (1080 / 1080) * 1.5 = 1.500
 
 // 4K Monitor (3840x2160)
-scale = (2160 / 1080) * 1.25 = 2.500
+scale = (2160 / 1080) * 1.5 = 3.000
+
+// Ultrawide (3440x1440)
+scale = (1440 / 1080) * 1.5 = 2.000
 ```
 
 **Width Independence**:
@@ -2585,6 +3246,78 @@ scale = (2160 / 1080) * 1.25 = 2.500
 - Wide screens show more lanes (more horizontal game world)
 - Narrow screens show fewer lanes (less horizontal game world)
 - Game remains playable on all widths (horizontally scrollable)
+- Discrete lane-grid camera adjusts CHICKEN_SCREEN_X based on container width (always 10%)
+
+---
+
+### Coin Opacity System
+
+The game implements a **progressive coin visibility system** to provide visual feedback about progression and available rewards.
+
+**Location**: [CoinManager.js](src/game/managers/CoinManager.js#L172-L188)
+
+```javascript
+/**
+ * Update coin visibility based on current progression
+ * - Initial state: All coins at 0.5 opacity (dimmed)
+ * - During gameplay: Next available coin at 1.0 opacity (highlighted)
+ * - Collected coins: Turn gold with full opacity
+ */
+updateCoinVisibility() {
+  let nextAvailableCoin = this.highestPassedLane + 1;
+
+  this.coins.forEach((coin, i) => {
+    if (!coin || !coin.sprite) return;
+
+    // Highlight ONLY the next available coin during active gameplay
+    // currentLaneIndex >= 0 means game has started (chicken moved from start zone)
+    if (i === nextAvailableCoin && this.currentLaneIndex >= 0) {
+      coin.sprite.alpha = 1.0; // Full opacity - NEXT available coin
+    } else {
+      coin.sprite.alpha = 0.5; // Dimmed - Future coins or already collected
+    }
+  });
+}
+```
+
+**Coin States**:
+
+```
+Initial State (Before Game Start):
+  🪙 🪙 🪙 🪙 🪙 🪙 🪙 🪙  ← All at 0.5 opacity (dimmed)
+
+During Gameplay (On Lane 3):
+  💰 💰 💰 🪙 🪙 🪙 🪙 🪙
+  ↑  ↑  ↑  ↑
+  Gold Gold Gold Full opacity (next) ← 1.0 opacity
+  (collected)    Dimmed (future) ← 0.5 opacity
+```
+
+**Why This System?**
+
+1. **Visual clarity**: Immediately shows which coin is next
+2. **Progression feedback**: Gold coins show how far player has progressed
+3. **Reduces clutter**: Dimmed future coins don't distract from current goal
+4. **Motivational**: Bright next coin draws player's attention forward
+
+**Triggering Logic**:
+
+```javascript
+// Initial call when coins are created
+createCoins(lanePositions) {
+  // ... create coin sprites ...
+  this.updateCoinVisibility(); // Set initial opacity state
+}
+
+// Called when chicken moves to new lane
+finishCurrentLane() {
+  const coin = this.coins[laneToFinish];
+  if (coin) {
+    coin.turnGold(); // Convert silver coin to gold
+    this.updateCoinVisibility(); // Update next coin highlight
+  }
+}
+```
 
 ---
 
@@ -2648,16 +3381,18 @@ canvas.addEventListener("click", (e) => {
 
 #### Camera Performance
 
-- **60+ FPS tracking**: Camera updates every frame with zero lag
-- **Direct calculation**: No interpolation overhead
+- **60+ FPS tracking**: Y-axis camera updates every frame with zero lag
+- **Discrete grid positioning**: X-axis camera updates during jumps (frame-perfect sync)
+- **Direct calculation**: No interpolation overhead on either axis
 - **Negligible CPU cost**: Simple arithmetic operations
 - **GPU-accelerated**: PixiJS handles all rendering via WebGL
 
 #### Memory Profile
 
-- **Static allocation**: No object creation during resize
+- **Static allocation**: No object creation during resize or jumps
 - **No garbage collection**: Reuses existing containers and properties
-- **Constant memory**: Viewport changes don't allocate new memory
+- **Constant memory**: Viewport changes and camera updates don't allocate new memory
+- **Discrete grid efficiency**: Lane-based positioning requires minimal state tracking
 
 ---
 
@@ -2914,39 +3649,137 @@ console.assert(
 
 **Key Takeaways**:
 
-1. **Vertical-Anchor Scaling**: Height-only scaling formula `(height/1080) × 1.25`
-2. **Atomic Updates**: THREE operations in ONE frame (resize, scale, camera)
-3. **Frame-Perfect Camera**: Direct math binding, zero interpolation/lag
-4. **Real-Time Detection**: ResizeObserver + window.resize + requestAnimationFrame
-5. **Left-Alignment**: worldContainer.x always 0 (horizontal scrolling game)
-6. **Universal Device Support**: From mobile portrait to 4K ultrawide
-7. **No Refresh Required**: Instant visual response to any viewport change
+1. **Dual-Axis Camera System**:
+   - **Y-axis**: Hard-locked tracking (chicken at 75% from top)
+   - **X-axis**: Discrete lane-grid positioning (chicken at 10% from left)
+
+2. **Vertical-Anchor Scaling**: Height-only scaling formula `(height/1080) × 1.5` (not 1.25)
+
+3. **Discrete Lane-Grid Camera** (X-axis):
+   - Deterministic formula: `targetWorldX = -(laneLeftEdge - CHICKEN_SCREEN_X)`
+   - Frame-perfect sync: Camera and chicken use SAME easeProgress during jumps
+   - Finish-line constraint: `worldX = Math.max(targetWorldX, maxScroll)` prevents black space
+   - Same formula for gameplay AND resize
+
+4. **Visual Positioning Constants**:
+   - `VERTICAL_FOCAL_POINT = 0.75` (chicken at lower third, not center)
+   - `ZOOM_MULTIPLIER = 1.5` (50% larger entities, not 25%)
+   - `SCENERY_LIFT_OFFSET = 350` (start/finish lifted above road)
+   - Start image clipped to 60% width (center portion only)
+   - `sceneryScale = 0.9` (zoom-out effect)
+
+5. **Frame-Perfect Synchronization**:
+   - Y-axis: `worldContainer.y` updated every frame (60+ FPS)
+   - X-axis: `stage.x` interpolated during jumps with same easeProgress as chicken
+   - Zero lag guarantee: Both chicken and camera use identical animation progress
+
+6. **Coin Opacity System**:
+   - All coins start at 0.5 opacity (dimmed)
+   - Next available coin: 1.0 opacity (highlighted during gameplay)
+   - Collected coins: Turn gold with full opacity
+
+7. **Real-Time Detection**: ResizeObserver + window.resize + requestAnimationFrame
+
+8. **Universal Device Support**: From mobile portrait to 4K ultrawide with deterministic positioning
+
+9. **No Refresh Required**: Instant visual response to viewport changes or window resize
 
 **Critical Code Locations**:
 
-- Viewport scaling: [PixiRenderer.js#L320-L355](src/game/core/PixiRenderer.js#L320-L355)
-- Camera tracking: [PixiRenderer.js#L363-L387](src/game/core/PixiRenderer.js#L363-L387)
-- Resize detection: [useResponsiveCanvas.js#L24-L56](src/hooks/useResponsiveCanvas.js#L24-L56)
-- Game bridge: [Game.js#L592-L596](src/game/core/Game.js#L592-L596)
-- Frame updates: [Game.js#L227-L230](src/game/core/Game.js#L227-L230)
+- **Y-axis Camera (Vertical)**: [PixiRenderer.js#L363-L400](src/game/core/PixiRenderer.js#L363-L400)
+- **X-axis Camera (Discrete Grid)**: [useGame.js#L487-L522](src/hooks/useGame.js#L487-L522)
+- **Frame-Perfect Jump Sync**: [Chicken.js#L280-L425](src/game/entities/Chicken.js#L280-L425)
+- **Resize Handler (X-axis)**: [useGame.js#L524-L552](src/hooks/useGame.js#L524-L552)
+- **Viewport Scaling**: [PixiRenderer.js#L320-L355](src/game/core/PixiRenderer.js#L320-L355)
+- **Resize Detection**: [useResponsiveCanvas.js#L24-L56](src/hooks/useResponsiveCanvas.js#L24-L56)
+- **Coin Opacity**: [CoinManager.js#L172-L188](src/game/managers/CoinManager.js#L172-L188)
+- **Visual Constants**: [PixiRenderer.js#L40-L47](src/game/core/PixiRenderer.js#L40-L47), [useGame.js#L188-L228](src/hooks/useGame.js#L188-L228)
 
 **Mathematical Formulas**:
 
 ```javascript
-// Vertical-anchor scaling
-scale = (viewportHeight / 1080) * 1.25;
+// Vertical-anchor scaling (height-only)
+scale = (viewportHeight / 1080) * 1.5;
 
-// Frame-perfect camera
-worldContainer.y = viewportHeight / 2 - cameraTarget.y * scale;
+// Y-axis camera (hard-locked vertical tracking)
+verticalFocalPoint = viewportHeight * 0.75; // 75% from top
+worldContainer.y = verticalFocalPoint - cameraTarget.y * scale;
+
+// X-axis camera (discrete lane-grid positioning)
+CHICKEN_SCREEN_X = containerWidth * 0.1; // 10% from left
+laneLeftEdge = startWidth + (laneIndex - 1) * laneWidth;
+targetWorldX = -(laneLeftEdge - CHICKEN_SCREEN_X);
+maxScroll = -(canvasWidth - containerWidth);
+stage.x = Math.max(targetWorldX, maxScroll); // Finish-line clamping
+
+// Frame-perfect jump synchronization (both use SAME easeProgress)
+easeProgress = easeInOutQuad(jumpProgress);
+chicken.x = startX + (endX - startX) * easeProgress;
+stage.x = startWorldX + (endWorldX - startWorldX) * easeProgress;
 ```
 
-**Testing Command**:
+**Architecture Decision Rationale**:
+
+**Why Discrete Lane-Grid?**
+
+- Eliminates camera desync issues (mathematically impossible to lag)
+- Deterministic positioning (same input → same output every time)
+- Easy to reason about (state-based, not velocity/interpolation-based)
+- Resize-safe (uses exact same formula as gameplay)
+- No tuning required (no smoothing factors or magic numbers)
+
+**Why 75% Vertical Focal Point (not 50%)?**
+
+- Maximizes forward visibility (see more of the road ahead)
+- Natural perspective for driving/scrolling games
+- More game world visible above chicken on tall mobile screens
+- Better gameplay (earlier warning of approaching obstacles)
+
+**Why 1.5x Zoom (not 1.0x or 1.25x)?**
+
+- Modern mobile screens have high DPI but small physical size
+- 50% larger entities significantly improve readability
+- Accessibility: Better for vision-impaired players
+- Desktop appeal: Prevents game from looking "tiny" on large monitors
+
+**Testing Commands**:
 
 ```bash
+# Development server
 npm run dev
-# Drag browser window to resize
-# Expected: Instant scaling with NO refresh required
+
+# Test resize behavior:
+# 1. Drag browser window edge → Expect instant scaling, no lag
+# 2. Jump chicken during resize → Expect frame-perfect sync
+# 3. Reach finish line → Expect no black space beyond finish
+
+# Test discrete grid:
+# 1. Jump forward/backward → Chicken stays at 10% from left
+# 2. Resize mid-jump → Camera maintains correct position
+# 3. All lane widths appear uniform
 ```
+
+**Common Debugging Points**:
+
+1. **Camera desync during jumps?**
+   - Check Chicken.update() uses SAME easeProgress for both chicken.x and stage.x
+   - Verify worldAnimationData contains startWorldX/endWorldX (not offsets)
+
+2. **Wrong chicken position after resize?**
+   - Check updateCameraOnResize() calls calculateWorldPosition() with current lane
+   - Verify CHICKEN_SCREEN_X = containerWidth \* 0.10 (not hardcoded)
+
+3. **Empty black space at finish?**
+   - Check maxScroll = -(canvasWidth - containerWidth) calculation
+   - Verify Math.max(targetWorldX, maxScroll) clamping is applied
+
+4. **Chicken not at 75% from top?**
+   - Check VERTICAL_FOCAL_POINT = 0.75 (not 0.5 or 0.55)
+   - Verify updateCamera() uses verticalFocalPoint = viewportHeight \* 0.75
+
+5. **Coins all full opacity before game starts?**
+   - Check currentLaneIndex >= 0 condition in updateCoinVisibility()
+   - Verify createCoins() calls updateCoinVisibility() at end
 
 ---
 
@@ -4156,9 +4989,9 @@ cp dist/index.html /Volumes/USB_DRIVE/
 
 ## Summary for AI Engineer
 
-**Document Version**: 3.0  
-**Last Updated**: [Current Date]  
-**Status**: Production-Ready with Zero-Dependency Single-File Build
+**Document Version**: 4.0  
+**Last Updated**: February 28, 2026  
+**Status**: Production-Ready with Discrete Lane-Grid Camera System & Zero-Dependency Single-File Build
 
 This document represents the complete technical architecture including:
 
@@ -4166,11 +4999,48 @@ This document represents the complete technical architecture including:
 - **Collision detection and win/loss mechanics** (Section 3)
 - **Project structure, tech stack, and critical implementation details** (Section 4-6)
 - **Canvas rendering and animation systems** - PixiJS v8 + Spine skeletal animations (Section 7)
-- **Responsiveness system** - Current implementation + future roadmap (Section 8)
+- **Canvas, Adaptive Sizing & Discrete Lane-Grid Camera System** (Section 8)
+  - **Dual-axis camera system**: Y-axis hard-locked tracking + X-axis discrete lane-grid positioning
+  - **Deterministic positioning**: Pure function State (laneIndex) → Screen Position (worldX)
+  - **Frame-perfect synchronization**: Zero lag between chicken and camera during jumps
+  - **Finish-line soft-stop**: Mathematical constraint prevents black space beyond finish
+  - **Visual positioning constants**: VERTICAL_FOCAL_POINT = 0.75, ZOOM_MULTIPLIER = 1.5, SCENERY_LIFT_OFFSET = 350
+  - **Coin opacity system**: Progressive visibility (0.5 dimmed, 1.0 highlighted next coin)
+  - **Real-time resize recovery**: Same discrete grid formula for gameplay and window resize
 - **Frontend architecture patterns** - Entity-Component, Manager, System, Event Bus, Callbacks (Section 9)
 - **Single-file build architecture** - Zero-dependency ESM asset embedding with Base64 (Section 10)
 
-All game mechanics, animation systems, rendering pipeline, architectural patterns, and deployment strategies are fully documented and production-ready.
+All game mechanics, animation systems, rendering pipeline, architectural patterns, camera systems, and deployment strategies are fully documented and production-ready.
+
+### Major Architectural Updates (Version 4.0)
+
+**Discrete Lane-Grid Camera System**:
+
+- Replaced offset-based camera interpolation with deterministic lane-grid positioning
+- Camera position now calculated as pure function: `f(laneIndex, containerWidth, canvasWidth) → worldX`
+- Eliminates all camera desync issues (mathematically impossible to lag)
+- Frame-perfect synchronization: Chicken and camera use identical easeProgress during jumps
+- Automatic finish-line constraint: `worldX = Math.max(targetWorldX, maxScroll)` prevents black space
+
+**Visual Positioning Enhancements**:
+
+- VERTICAL_FOCAL_POINT = 0.75 (chicken at 75% from top, not 50%, for better forward visibility)
+- ZOOM_MULTIPLIER = 1.5 (increased from 1.25 for enhanced readability on all devices)
+- SCENERY_LIFT_OFFSET = 350 (start/finish images lifted above road baseline)
+- Start image texture clipping (center 60% shown, edges removed for uniform lane widths)
+- sceneryScale = 0.9 (zoom-out effect for visual depth)
+
+**Coin Opacity System**:
+
+- All coins start at 0.5 opacity (dimmed, less distracting)
+- Next available coin at 1.0 opacity during gameplay (highlighted, draws attention)
+- Collected coins turn gold with full opacity (progression feedback)
+
+**Resize Handling**:
+
+- updateCameraOnResize() uses SAME discrete grid formula as gameplay (not separate logic)
+- Instant repositioning with no interpolation on window resize
+- Chicken maintains relative position: 10% from left (X-axis), 75% from top (Y-axis)
 
 ### Key Deployment Features
 
@@ -4183,3 +5053,41 @@ The game produces a **completely self-contained 5.3MB HTML file** with:
 - No CORS issues, no 404 errors, no missing assets
 
 Build verification: `npm run build` → single `dist/index.html` file ready for deployment anywhere.
+
+### Quick Implementation Reference
+
+**Discrete Lane-Grid Camera Formula** (X-axis horizontal scrolling):
+
+```javascript
+// Location: useGame.js - calculateWorldPosition()
+const CHICKEN_SCREEN_X = containerWidth * 0.1;
+const laneLeftEdge = startWidth + (laneIndex - 1) * laneWidth;
+const targetWorldX = -(laneLeftEdge - CHICKEN_SCREEN_X);
+const maxScroll = -(canvasWidth - containerWidth);
+stage.x = Math.max(targetWorldX, maxScroll); // Finish-line constraint
+```
+
+**Y-Axis Vertical Tracking**:
+
+```javascript
+// Location: PixiRenderer.js - updateCamera()
+const verticalFocalPoint = viewportHeight * 0.75; // 75% from top
+worldContainer.y = verticalFocalPoint - cameraTarget.y * currentScale;
+```
+
+**Frame-Perfect Jump Sync**:
+
+```javascript
+// Location: Chicken.js - update()
+const easeProgress = easeInOutQuad(jumpProgress); // SHARED value
+chicken.x = startX + (endX - startX) * easeProgress;
+stage.x = startWorldX + (endWorldX - startWorldX) * easeProgress;
+// Both use SAME easeProgress → zero lag guarantee
+```
+
+**Viewport Scaling** (height-only):
+
+```javascript
+// Location: PixiRenderer.js - updateViewport()
+currentScale = (viewportHeight / 1080) * 1.5;
+```

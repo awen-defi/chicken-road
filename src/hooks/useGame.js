@@ -188,9 +188,9 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         const sceneryScale = 0.9; // Reduced for more "zoomed out" appearance of start/finish images
 
         // Calculate layout using scaled texture dimensions
-        // Start image: show right portion (clip some from left side)
+        // Start image: clip left and right to remove extra road portion
         const startTextureWidth = startTexture.width;
-        const startClipWidth = startTextureWidth * 0.7; // Use right 70% of image
+        const startClipWidth = startTextureWidth * 0.6; // Use center 60% of image (clip 30% left, 10% right)
         const startWidth = startClipWidth * sceneryScale; // Scaled width after clipping
         const startHeight = startTexture.height * sceneryScale;
         const finishWidth = finishTexture.width * sceneryScale;
@@ -229,11 +229,11 @@ export function useGame(canvasRef, config, scrollContainerRef) {
 
         // Create entities with Pixi texture
 
-        // Start scenery (show right 70% - clip left 30%)
+        // Start scenery (clip left 30% and right 10% to remove road edges)
         const startClipRect = new Rectangle(
-          startTextureWidth * 0.3, // Start from 30% position (clip left 30%)
+          startTextureWidth * 0.3, // Start from 30% position
           0, // Top
-          startClipWidth, // Right 70% width
+          startClipWidth, // Center 60% width
           startTexture.height, // Full height
         );
         const startScenery = new Scenery(
@@ -253,7 +253,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           lightSprite.anchor.set(0.5, 1); // Center bottom anchor
           lightSprite.scale.set(lightScale);
           // Position on start sidewalk (adjusted for clipped start image)
-          lightSprite.x = startWidth * 0.65; // Adjusted for 70% width start area
+          lightSprite.x = startWidth * 0.8; // Adjusted for 60% width start area
           lightSprite.y = gameElementsCenterY - 200; // Slightly below chicken level
           lightSprite.zIndex = 10; // Above scenery but below coins
           entityManager.stage.addChild(lightSprite);
@@ -297,7 +297,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         }
 
         // Chicken with Spine animation (positioned more to the left after start image clipping)
-        const chickenX = startWidth - 220; // Positioned further left in start area
+        const chickenX = startWidth - 160; // Adjusted for 60% width start area
         const chickenY = gameElementsCenterY; // Chicken at visual center (middle area)
 
         const chicken = new Chicken(chickenX, chickenY, {

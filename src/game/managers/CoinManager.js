@@ -95,6 +95,9 @@ export class CoinManager {
     if (this.entityManager && this.entityManager.stage) {
       this.entityManager.stage.sortableChildren = true;
     }
+
+    // Set initial coin opacity (all coins start at 0.5 opacity before game starts)
+    this.updateCoinVisibility();
   }
 
   /**
@@ -173,18 +176,18 @@ export class CoinManager {
       } else {
         coin.setVisible(true);
 
-        // Set opacity: next available coin = 1.0, all others = 0.7 (except gold coins)
+        // Set opacity: next available coin = 1.0 (only during gameplay), all others = 0.5
         if (coin.sprite) {
           if (coin.isGold) {
             // Gold coins always full opacity
             coin.sprite.alpha = 1.0;
             if (coin.text) coin.text.alpha = 1.0;
-          } else if (i === nextAvailableCoin) {
-            // Next available coin full opacity
+          } else if (i === nextAvailableCoin && this.currentLaneIndex >= 0) {
+            // Next available coin full opacity (only when game is active)
             coin.sprite.alpha = 1.0;
             if (coin.text) coin.text.alpha = 1.0;
           } else {
-            // All other silver coins reduced opacity
+            // All other silver coins reduced opacity (including initial state)
             coin.sprite.alpha = 0.5;
             if (coin.text) coin.text.alpha = 0.5;
           }
