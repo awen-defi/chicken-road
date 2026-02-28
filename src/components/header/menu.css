@@ -73,6 +73,11 @@
   color: rgb(161, 161, 161);
   font-family: Montserrat, sans-serif;
   font-style: normal;
+  transition: all 0.2s;
+}
+
+.MenuHeaderUserBtn:hover {
+  color: rgb(253, 207, 75);
 }
 
 .MenuContent {
@@ -92,6 +97,10 @@
   font-size: 14px;
   line-height: 14px;
 }
+.MenuItem.point,
+.MenuHowToPlay {
+  cursor: pointer;
+}
 .IconWrapper {
   display: flex;
   align-items: center;
@@ -109,35 +118,23 @@
   font-size: 14px;
   line-height: 14px;
   color: white;
+  transition: all 0.2s;
 }
-.SwitchContainer {
-  display: inline-block;
-  position: relative;
-  width: 28px;
-  height: 17px;
+
+.MenuItem svg path {
+  transition: all 0.2s;
 }
-.Slider {
-  position: absolute;
-  cursor: pointer;
-  inset: 0px;
-  background: rgba(255, 255, 255, 0.1);
-  transition: 0.3s;
-  border-radius: 34px;
+
+.MenuItem.point:hover span,
+.MenuHowToPlay:hover span {
+  color: rgb(253, 207, 75);
 }
-.Slider::before {
-  content: "";
-  position: absolute;
-  top: 1px;
-  height: calc(100% - 2px);
-  width: calc(60% - 1px);
-  left: 1px;
-  transition: 0.3s;
-  border-radius: 50%;
-  background: rgb(255, 255, 255);
-  box-shadow:
-    rgba(0, 0, 0, 0.1) 0px 0.1px 0.3px,
-    rgba(0, 0, 0, 0.2) 0px 1px 2px;
+
+.MenuItem.point:hover svg path,
+.MenuHowToPlay:hover svg path {
+  stroke: rgb(253, 207, 75);
 }
+
 .spacebar {
   flex-shrink: 0;
   width: 16px;

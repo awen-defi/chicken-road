@@ -2,10 +2,29 @@ import { useRef } from "react";
 import "./menu.css";
 import { useOutsideClick } from "../../hooks";
 import inoutLogo from "../../assets/inoutLogo.svg";
+import { Checkbox } from "../Checkbox";
+import { ProvablySettings } from "./provably-settings";
+import { GameRules } from "./game-rules";
 
 export function Menu({ openHowToPlayModal }) {
   const dropdownRef = useRef(null);
   const menuRef = useRef(null);
+  const provablyRef = useRef(null);
+  const gameRulesRef = useRef(null);
+
+  const handleOpenProvably = () => {
+    if (provablyRef.current) {
+      dropdownRef.current.close();
+      provablyRef.current.showModal();
+    }
+  };
+
+  const handleOpenGameRules = () => {
+    if (gameRulesRef.current) {
+      dropdownRef.current.close();
+      gameRulesRef.current.showModal();
+    }
+  };
 
   const handleClick = () => {
     if (dropdownRef.current) {
@@ -20,6 +39,13 @@ export function Menu({ openHowToPlayModal }) {
   const handleClose = () => {
     if (dropdownRef.current.open) {
       dropdownRef.current.close();
+    }
+  };
+
+  const handleOpenHowToPlay = () => {
+    handleClose();
+    if (typeof openHowToPlayModal === "function") {
+      openHowToPlayModal();
     }
   };
 
@@ -63,12 +89,19 @@ export function Menu({ openHowToPlayModal }) {
         />
       </svg>
 
-      <Dropdown ref={dropdownRef} openHowToPlayModal={openHowToPlayModal} />
+      <Dropdown
+        ref={dropdownRef}
+        openHowToPlayModal={handleOpenHowToPlay}
+        openProvably={handleOpenProvably}
+        openGameRules={handleOpenGameRules}
+      />
+      <ProvablySettings ref={provablyRef} />
+      <GameRules ref={gameRulesRef} />
     </div>
   );
 }
 
-function Dropdown({ ref, openHowToPlayModal }) {
+function Dropdown({ ref, openHowToPlayModal, openProvably, openGameRules }) {
   return (
     <dialog
       className="MenuContainer"
@@ -109,9 +142,7 @@ function Dropdown({ ref, openHowToPlayModal }) {
             </span>
             <span>Sound</span>
           </div>
-          <label className="SwitchContainer">
-            <span data-testid="menu-sound-switch" className="Slider"></span>
-          </label>
+          <Checkbox />
         </div>
         <div className="MenuItemWithToggle">
           <div className="MenuItem">
@@ -141,9 +172,7 @@ function Dropdown({ ref, openHowToPlayModal }) {
             </span>
             <span>Music</span>
           </div>
-          <label className="SwitchContainer">
-            <span data-testid="menu-music-switch" className="Slider"></span>
-          </label>
+          <Checkbox />
         </div>
         <div className="MenuItemWithToggle">
           <div className="MenuItem">
@@ -166,12 +195,14 @@ function Dropdown({ ref, openHowToPlayModal }) {
             </span>
             <span>«Space» to spin &amp; go</span>
           </div>
-          <label className="SwitchContainer">
-            <span data-testid="menu-spacebar-switch" className="Slider"></span>
-          </label>
+          <Checkbox />
         </div>
         <span className="MenuLine"></span>
-        <div data-testid="menu-fair-settings" className="MenuItem point hover">
+        <div
+          data-testid="menu-fair-settings"
+          className="MenuItem point hover"
+          onClick={openProvably}
+        >
           <span className="IconWrapper">
             <svg
               width="16"
@@ -193,7 +224,11 @@ function Dropdown({ ref, openHowToPlayModal }) {
           </span>
           <span>Provably fair settings</span>
         </div>
-        <div data-testid="menu-bet-limits" className="MenuItem point hover">
+        <div
+          data-testid="menu-bet-limits"
+          className="MenuItem point hover"
+          onClick={openGameRules}
+        >
           <span className="IconWrapper">
             <svg
               width="16"
@@ -241,7 +276,7 @@ function Dropdown({ ref, openHowToPlayModal }) {
           </span>
           <span>My bet history</span>
         </div>
-        <div className="MenuContent MenuHowToPlay">
+        <div className="MenuContent MenuHowToPlay point">
           <span className="MenuLine"></span>
           <div
             data-testid="menu-how-to-play-mobile"

@@ -108,7 +108,7 @@
   }
 }
 
-.how-to-play-modal {
+.generic-dialog {
   padding: 32px;
   background: rgb(84, 84, 84);
   border: 2px solid rgb(84, 84, 84);
@@ -134,42 +134,42 @@
   -ms-overflow-style: none;
 }
 
-.how-to-play-modal::-webkit-scrollbar {
+.generic-dialog::-webkit-scrollbar {
   display: none;
   width: 0; /* Optional: also hide horizontal scrollbar width if needed */
   height: 0; /* Optional: also hide vertical scrollbar height if needed */
 }
 
-.how-to-play-modal::backdrop {
+.generic-dialog::backdrop {
   background: rgba(26, 26, 26, 0.8);
   backdrop-filter: blur(5px);
 }
 
-.how-to-play-modal-x {
+.generic-dialog-x {
   width: 20px;
   height: 20px;
   cursor: pointer;
 }
 
-.how-to-play-modal-x path {
+.generic-dialog-x path {
   stroke: #f0f0f0;
   fill: #f0f0f0;
   transition: all 0.1s;
 }
 
-.how-to-play-modal-x:hover path {
+.generic-dialog-x:hover path {
   stroke: rgb(253, 207, 75);
   fill: rgb(253, 207, 75);
 }
 
-.how-to-play-modal-header {
+.generic-dialog-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 15px;
 }
 
-.how-to-play-modal-header-text {
+.generic-dialog-header-text {
   font-weight: 600;
   font-size: 18px;
   line-height: 150%;
