@@ -185,7 +185,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         }
 
         // Scaling factor for all elements
-        const sceneryScale = 1.1; // Increased by 1.2x from previous 0.84 (0.84 * 1.2)
+        const sceneryScale = 0.9; // Reduced for more "zoomed out" appearance of start/finish images
 
         // Calculate layout using scaled texture dimensions
         // Start image: show right portion (clip some from left side)
@@ -224,7 +224,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         // CRITICAL ALIGNMENT: Scenery must share the same Y baseline as the road
         // This ensures Start/Finish edges perfectly align with Road edges
         // Lift scenery upward for better visual composition (proportional to scale)
-        const SCENERY_LIFT_OFFSET = 500; // Lift scenery by 30 logical pixels
+        const SCENERY_LIFT_OFFSET = 350; // Lift scenery by 30 logical pixels
         const sceneryY = roadY - SCENERY_LIFT_OFFSET; // Lift scenery above road baseline
 
         // Create entities with Pixi texture
@@ -248,12 +248,12 @@ export function useGame(canvasRef, config, scrollContainerRef) {
 
         // Light pole on start sidewalk (static decoration)
         if (poleTexture) {
-          const lightScale = sceneryScale * 0.4; // 60% of scenery scale
+          const lightScale = sceneryScale * 0.5; // 60% of scenery scale
           const lightSprite = new Sprite(poleTexture);
           lightSprite.anchor.set(0.5, 1); // Center bottom anchor
           lightSprite.scale.set(lightScale);
           // Position on start sidewalk (adjusted for clipped start image)
-          lightSprite.x = startWidth * 0.7; // Adjusted for 70% width start area
+          lightSprite.x = startWidth * 0.65; // Adjusted for 70% width start area
           lightSprite.y = gameElementsCenterY - 200; // Slightly below chicken level
           lightSprite.zIndex = 10; // Above scenery but below coins
           entityManager.stage.addChild(lightSprite);
@@ -291,7 +291,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           bannerSprite.scale.set(bannerScale);
           // Position on finish sidewalk
           bannerSprite.x = startWidth + roadWidth + finishWidth * 0.45; // Center of finish sidewalk
-          bannerSprite.y = gameElementsCenterY - 70; // Slightly below chicken level
+          bannerSprite.y = gameElementsCenterY - 30; // Slightly below chicken level
           bannerSprite.zIndex = 10; // Above scenery but below coins
           entityManager.stage.addChild(bannerSprite);
         }
