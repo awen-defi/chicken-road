@@ -13,6 +13,7 @@
   image-rendering: crisp-edges;
   height: 100%;
   width: auto;
+  margin: 0 auto; /* Center canvas horizontally when narrower than container */
   user-select: none;
   pointer-events: none;
   /* Advanced hardware acceleration for anti-flickering */

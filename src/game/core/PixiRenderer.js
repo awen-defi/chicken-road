@@ -407,14 +407,16 @@ export class PixiRenderer {
     const chickenScaledX = this.cameraTarget.x * this.currentScale;
     const rawTargetX = chickenScreenX - chickenScaledX;
 
-    // ━━━ FINISH LINE CLAMP: Prevents empty space beyond finish ━━━
-    // When world edge reaches viewport edge, stop scrolling
+    // ━━━ DUAL CLAMP: Prevents empty space on BOTH sides ━━━
+    // START CLAMP: worldContainer.x <= 0 (never show left of start image)
+    // FINISH CLAMP: worldContainer.x >= maxScroll (never show right of finish image)
     const worldScaledWidth = this.worldWidth * this.currentScale;
     const maxScroll = -(worldScaledWidth - this.viewportWidth);
 
-    // Apply clamping: world can't scroll past finish line
-    // Math.max ensures we don't go more negative than maxScroll
-    this.worldContainer.x = Math.max(rawTargetX, maxScroll);
+    // Apply dual clamping: constrain to [maxScroll, 0]
+    // Math.min(0, ...) prevents showing left of start
+    // Math.max(..., maxScroll) prevents showing right of finish
+    this.worldContainer.x = Math.min(0, Math.max(rawTargetX, maxScroll));
   }
 
   /**
