@@ -8,10 +8,10 @@
   user-select: none;
   height: 49px;
   position: relative;
+  padding: 8px 22px;
 }
 
 .logo-container {
-  flex-shrink: 0;
   margin-right: 8px;
   display: flex;
   align-items: baseline;
@@ -22,6 +22,7 @@
 }
 
 .logo {
+  max-width: 100%;
   width: auto;
   height: 100%;
   object-fit: scale-down;
@@ -84,6 +85,7 @@
   background: rgba(255, 255, 255, 0.1);
   border-radius: 6px;
   height: 33px;
+  font-size: 16px;
 }
 
 .fullscreen-button {
@@ -188,15 +190,8 @@
   margin-bottom: 15px;
 }
 
-@media (min-aspect-ratio: 110 / 100) {
-  .header {
-    height: 49px;
-    padding: 8px 22px;
-  }
-}
-
-@media (min-width: 1240px) {
-  .logo-container {
-    height: 34px;
+@media (max-aspect-ratio: 110 / 100) {
+  .how-to-play {
+    display: none;
   }
 }

@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import "./menu.css";
 
-export function Menu() {
+export function Menu({ openHowToPlayModal }) {
   const dropdownRef = useRef(null);
 
   const handleClick = () => {
@@ -52,12 +52,12 @@ export function Menu() {
         />
       </svg>
 
-      <Dropdown ref={dropdownRef} />
+      <Dropdown ref={dropdownRef} openHowToPlayModal={openHowToPlayModal} />
     </div>
   );
 }
 
-function Dropdown({ ref }) {
+function Dropdown({ ref, openHowToPlayModal }) {
   return (
     <dialog
       className="MenuContainer"
@@ -230,9 +230,13 @@ function Dropdown({ ref }) {
           </span>
           <span>My bet history</span>
         </div>
-        {/* <div className="MenuContent">
+        <div className="MenuContent MenuHowToPlay">
           <span className="MenuLine"></span>
-          <div data-testid="menu-how-to-play-mobile" className="MenuItem">
+          <div
+            data-testid="menu-how-to-play-mobile"
+            className="MenuItem"
+            onClick={openHowToPlayModal}
+          >
             <span className="IconWrapper">
               <svg
                 width="16"
@@ -254,7 +258,7 @@ function Dropdown({ ref }) {
             </span>
             <span>How to play?</span>
           </div>
-        </div> */}
+        </div>
         <span className="MenuLine"></span>
         <div className="MenuItem">
           <span className="PoweredText">Powered by</span>

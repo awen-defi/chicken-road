@@ -37,11 +37,16 @@
   margin: 0;
 }
 
+html {
+  font-size: calc(100vw / (1920 / 10));
+}
+
 body {
   background-color: #313131;
   color: #fff;
   font-family: "Montserrat", sans-serif;
   font-weight: 400;
+  overflow: hidden !important;
 
   * {
     font-family: "Montserrat", sans-serif;
@@ -54,4 +59,16 @@ body {
   height: 100dvh;
   display: flex;
   flex-direction: column;
+}
+
+@media screen and (max-width: 1028px) {
+  html {
+    font-size: 62.5%;
+  }
+}
+
+@media screen and (max-width: 460px) {
+  html {
+    font-size: calc(100vw / (460 / 10));
+  }
 }

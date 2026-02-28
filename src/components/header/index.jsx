@@ -105,7 +105,7 @@ export function Header({ balance }) {
           </svg>
         </div>
 
-        <Menu />
+        <Menu openHowToPlayModal={openHowToPlayModal} />
       </div>
 
       <HowToPlayModal ref={howToPlayModalRef} />

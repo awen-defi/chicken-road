@@ -158,3 +158,9 @@
   height: 20px;
   background: url(/inoutLogo.svg) center bottom / cover no-repeat;
 }
+
+@media (min-aspect-ratio: 110 / 100) {
+  .MenuHowToPlay {
+    display: none;
+  }
+}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DollarIcon } from "../DollarIcon";
 import "./index.css";
 
@@ -9,6 +9,9 @@ import "./index.css";
 const roundCurrency = (amount) => {
   return Math.round(amount * 100) / 100;
 };
+
+const BET_OPTIONS = [0.5, 1, 2, 7];
+const DIFFICULTY_LEVELS = ["Easy", "Medium", "Hard", "Hardcore"];
 
 export function ControlPanel({
   betAmount,
@@ -24,9 +27,6 @@ export function ControlPanel({
   cashoutButtonDisabled = true,
 }) {
   const [sliderValue, setSliderValue] = useState(1);
-
-  const betOptions = [0.5, 1, 2, 7];
-  const difficultyLevels = ["Easy", "Medium", "Hard", "Hardcore"];
 
   // Sync slider value with bet amount
   useEffect(() => {
@@ -69,14 +69,14 @@ export function ControlPanel({
           </div>
 
           <div className="bet-buttons">
-            {betOptions.map((amount) => (
+            {BET_OPTIONS.map((amount) => (
               <button
                 key={amount}
                 className={`bet-button ${betAmount === amount ? "active" : ""}`}
                 onClick={() => !disabled && setBetAmount(amount)}
                 disabled={disabled}
               >
-                {amount} <DollarIcon size="small" />
+                {amount} <DollarIcon size="large" />
               </button>
             ))}
           </div>
@@ -89,7 +89,7 @@ export function ControlPanel({
             <span className="chance">Chance of being shot down</span>
           </div>
           <div className="difficulty-buttons">
-            {difficultyLevels.map((level) => (
+            {DIFFICULTY_LEVELS.map((level) => (
               <span
                 key={level}
                 className={`difficulty-button ${difficulty === level ? "active" : ""}`}
@@ -102,8 +102,16 @@ export function ControlPanel({
           </div>
         </div>
 
-        <div className="buttons">
-          {/* Cashout Button - visible when playing or at finish */}
+        {!isPlaying && gameState !== "atFinish" ? (
+          <DifficultyLevelSelect
+            level={difficulty}
+            setDifficulty={setDifficulty}
+          />
+        ) : null}
+
+        <div
+          className={`buttons ${isPlaying || gameState === "atFinish" ? "playing" : ""}`}
+        >
           {(isPlaying || gameState === "atFinish") && (
             <button
               className="cashout-button"
@@ -120,7 +128,6 @@ export function ControlPanel({
             </button>
           )}
 
-          {/* Play Button */}
           <button
             className={`play-button ${isPlaying ? "go-button" : ""}`}
             onClick={onPlay}
@@ -134,6 +141,75 @@ export function ControlPanel({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function DifficultyLevelSelect({ level, setDifficulty }) {
+  const dialogRef = useRef(null);
+
+  const handleClick = () => {
+    if (dialogRef.current) {
+      if (dialogRef.current.open) {
+        dialogRef.current.close();
+      } else {
+        dialogRef.current.show();
+      }
+    }
+  };
+
+  const handleOptionClick = (diff) => {
+    if (diff === level) {
+      return;
+    }
+
+    setDifficulty(diff);
+    if (dialogRef.current) {
+      dialogRef.current.close();
+    }
+  };
+
+  return (
+    <div className="difficulty-level-select">
+      <div className="difficulty-level-value" onClick={handleClick}>
+        <span className="difficulty-level-text">{level}</span>
+        <svg
+          height="20"
+          width="20"
+          viewBox="0 0 20 20"
+          focusable="false"
+          className="difficulty-level-angle"
+        >
+          <path d="M4.516 7.548c0.436-0.446 1.043-0.481 1.576 0l3.908 3.747 3.908-3.747c0.533-0.481 1.141-0.446 1.574 0 0.436 0.445 0.408 1.197 0 1.615-0.406 0.418-4.695 4.502-4.695 4.502-0.217 0.223-0.502 0.335-0.787 0.335s-0.57-0.112-0.789-0.335c0 0-4.287-4.084-4.695-4.502s-0.436-1.17 0-1.615z"></path>
+        </svg>
+      </div>
+      <dialog className="difficulty-level-content" ref={dialogRef}>
+        {DIFFICULTY_LEVELS.map((diff) => (
+          <div
+            key={diff}
+            className={`difficulty-level-option`}
+            onClick={() => handleOptionClick(diff)}
+          >
+            {diff}
+            {diff === level && (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-Width="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="difficulty-level-check"
+              >
+                <path d="M20 6L9 17l-5-5"></path>
+              </svg>
+            )}
+          </div>
+        ))}
+      </dialog>
     </div>
   );
 }

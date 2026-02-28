@@ -72,6 +72,10 @@
   gap: 15px;
 }
 
+.loading-text {
+  font-size: 20px;
+}
+
 .loading-loader {
   width: 30px;
   height: 30px;
