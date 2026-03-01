@@ -3,7 +3,7 @@ import { CarSpawner } from "../systems/CarSpawner.js";
 import { CoinManager } from "../managers/CoinManager.js";
 import { GateManager } from "../managers/GateManager.js";
 import { DIFFICULTY_SETTINGS } from "../../config/gameConfig.js";
-import * as PIXI from "pixi.js";
+import { Container, Sprite, Text } from "pixi.js";
 
 /**
  * Game - Main game class that orchestrates all game systems using Pixi.js
@@ -316,17 +316,17 @@ export class Game {
     }
 
     // Create container for win display
-    this.winDisplay = new PIXI.Container();
+    this.winDisplay = new Container();
     this.winDisplay.visible = false;
     this.winDisplay.zIndex = 2000; // Very high to be on top within UI layer
     this.winDisplay.pivot.set(0, 0); // Set pivot for centered scaling
 
     // Create notification sprite
-    this.winNotificationSprite = new PIXI.Sprite(notificationTexture);
+    this.winNotificationSprite = new Sprite(notificationTexture);
     this.winNotificationSprite.anchor.set(0.5, 0.5);
 
     // Create "Win!" header text (PixiJS v8 format) - will be scaled adaptively
-    this.winHeaderText = new PIXI.Text({
+    this.winHeaderText = new Text({
       text: "Win!",
       style: {
         fontFamily: "Montserrat, sans-serif",
@@ -344,7 +344,7 @@ export class Game {
     this.winHeaderText.anchor.set(0.5, 0.5);
 
     // Create text for win amount with coin styling (PixiJS v8 format) - will be scaled adaptively
-    this.winAmountText = new PIXI.Text({
+    this.winAmountText = new Text({
       text: "$0.00",
       style: {
         fontFamily: "Montserrat, sans-serif",
