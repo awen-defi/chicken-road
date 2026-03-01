@@ -330,7 +330,7 @@ export class Game {
       text: "Win!",
       style: {
         fontFamily: "Montserrat, sans-serif",
-        fontSize: 32, // Base size - will be scaled
+        fontSize: 21, // Base size - will be scaled (reduced 1.5x)
         fontWeight: "bold",
         fill: "#ffffff",
         dropShadow: {
@@ -348,7 +348,7 @@ export class Game {
       text: "$0.00",
       style: {
         fontFamily: "Montserrat, sans-serif",
-        fontSize: 40, // Base size - will be scaled
+        fontSize: 27, // Base size - will be scaled (reduced 1.5x)
         fontWeight: "bold",
         fill: "#ffffff", // Gold color like coins
         dropShadow: {
@@ -405,17 +405,16 @@ export class Game {
 
     // Calculate adaptive scale based on viewport size
     // Make popup smaller for all screens, extra small for mobile
-    const baseWidth = 800; // Reference width for normal scale
-    const scaleX = Math.min(1, viewportWidth / baseWidth);
-    const scaleY = Math.min(1, viewportHeight / 600); // Reference height
+    const scaleX = Math.min(1, viewportWidth / 600);
+    const scaleY = Math.min(1, viewportHeight / 400); // Reference height
 
-    // Base scale: 0.5 (smaller for all screens)
+    // Base scale: 0.333 (reduced 1.5x for all screens)
     // Extra reduction for small screens (< 600px width)
-    let sizeMultiplier = 0.5; // 50% of original size
+    let sizeMultiplier = 0.333; // 33% of original size (reduced 1.5x from 0.5)
     if (viewportWidth < 600) {
-      sizeMultiplier = 0.25; // 35% for small screens
+      sizeMultiplier = 0.167; // ~17% for small screens (reduced 1.5x from 0.25)
     } else if (viewportWidth < 900) {
-      sizeMultiplier = 0.3; // 45% for medium screens
+      sizeMultiplier = 0.2; // 20% for medium screens (reduced 1.5x from 0.3)
     }
 
     const adaptiveScale = Math.min(scaleX, scaleY) * sizeMultiplier;
