@@ -1,16 +1,50 @@
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import "./menu.css";
 import { useOutsideClick } from "../../hooks";
 import inoutLogo from "../../assets/inoutLogo.svg";
 import { Checkbox } from "../Checkbox";
 import { ProvablySettings } from "./provably-settings";
 import { GameRules } from "./game-rules";
+import { settingsManager } from "../../services/SettingsManager.js";
 
 export function Menu({ openHowToPlayModal }) {
   const dropdownRef = useRef(null);
   const menuRef = useRef(null);
   const provablyRef = useRef(null);
   const gameRulesRef = useRef(null);
+
+  // Local state for settings (synced with SettingsManager)
+  const [soundEnabled, setSoundEnabled] = useState(
+    settingsManager.get("soundEnabled"),
+  );
+  const [musicEnabled, setMusicEnabled] = useState(
+    settingsManager.get("musicEnabled"),
+  );
+  const [spaceToPlayEnabled, setSpaceToPlayEnabled] = useState(
+    settingsManager.get("spaceToPlayEnabled"),
+  );
+
+  // Subscribe to settings changes
+  useEffect(() => {
+    const unsubscribeSound = settingsManager.subscribe(
+      "soundEnabled",
+      setSoundEnabled,
+    );
+    const unsubscribeMusic = settingsManager.subscribe(
+      "musicEnabled",
+      setMusicEnabled,
+    );
+    const unsubscribeSpace = settingsManager.subscribe(
+      "spaceToPlayEnabled",
+      setSpaceToPlayEnabled,
+    );
+
+    return () => {
+      unsubscribeSound();
+      unsubscribeMusic();
+      unsubscribeSpace();
+    };
+  }, []);
 
   const handleOpenProvably = () => {
     if (provablyRef.current) {
@@ -47,6 +81,22 @@ export function Menu({ openHowToPlayModal }) {
     if (typeof openHowToPlayModal === "function") {
       openHowToPlayModal();
     }
+  };
+
+  // Settings toggle handlers
+  const handleToggleSound = (e) => {
+    e.stopPropagation();
+    settingsManager.toggle("soundEnabled");
+  };
+
+  const handleToggleMusic = (e) => {
+    e.stopPropagation();
+    settingsManager.toggle("musicEnabled");
+  };
+
+  const handleToggleSpace = (e) => {
+    e.stopPropagation();
+    settingsManager.toggle("spaceToPlayEnabled");
   };
 
   useOutsideClick(dropdownRef, handleClose, menuRef);
@@ -94,6 +144,12 @@ export function Menu({ openHowToPlayModal }) {
         openHowToPlayModal={handleOpenHowToPlay}
         openProvably={handleOpenProvably}
         openGameRules={handleOpenGameRules}
+        soundEnabled={soundEnabled}
+        musicEnabled={musicEnabled}
+        spaceToPlayEnabled={spaceToPlayEnabled}
+        onToggleSound={handleToggleSound}
+        onToggleMusic={handleToggleMusic}
+        onToggleSpace={handleToggleSpace}
       />
       <ProvablySettings ref={provablyRef} />
       <GameRules ref={gameRulesRef} />
@@ -101,7 +157,18 @@ export function Menu({ openHowToPlayModal }) {
   );
 }
 
-function Dropdown({ ref, openHowToPlayModal, openProvably, openGameRules }) {
+function Dropdown({
+  ref,
+  openHowToPlayModal,
+  openProvably,
+  openGameRules,
+  soundEnabled,
+  musicEnabled,
+  spaceToPlayEnabled,
+  onToggleSound,
+  onToggleMusic,
+  onToggleSpace,
+}) {
   return (
     <dialog
       className="MenuContainer"
@@ -137,12 +204,12 @@ function Dropdown({ ref, openHowToPlayModal, openProvably, openGameRules }) {
                   stroke="white"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                ></path>
+                />
               </svg>
             </span>
             <span>Sound</span>
           </div>
-          <Checkbox />
+          <Checkbox checked={soundEnabled} onChange={onToggleSound} />
         </div>
         <div className="MenuItemWithToggle">
           <div className="MenuItem">
@@ -172,7 +239,7 @@ function Dropdown({ ref, openHowToPlayModal, openProvably, openGameRules }) {
             </span>
             <span>Music</span>
           </div>
-          <Checkbox />
+          <Checkbox checked={musicEnabled} onChange={onToggleMusic} />
         </div>
         <div className="MenuItemWithToggle">
           <div className="MenuItem">
@@ -195,7 +262,7 @@ function Dropdown({ ref, openHowToPlayModal, openProvably, openGameRules }) {
             </span>
             <span>«Space» to spin &amp; go</span>
           </div>
-          <Checkbox />
+          <Checkbox checked={spaceToPlayEnabled} onChange={onToggleSpace} />
         </div>
         <span className="MenuLine"></span>
         <div

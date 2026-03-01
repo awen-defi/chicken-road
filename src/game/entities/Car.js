@@ -1,5 +1,6 @@
 import { BaseEntity } from "./BaseEntity.js";
 import { Sprite } from "pixi.js";
+import { audioEngine } from "../../services/AudioEngine.js";
 
 /**
  * Car - Vehicle obstacle entity using Pixi sprites
@@ -126,6 +127,10 @@ export class Car extends BaseEntity {
         if (nextFrontY >= stopY + this.height / 2) {
           this.y = stopY;
           this.isStopped = true;
+
+          // Play crash sound when car stops at gate
+          audioEngine.onCrash();
+
           return; // Don't move further
         }
       }

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { DollarIcon } from "../DollarIcon";
 import "./index.css";
 import { useOutsideClick } from "../../hooks";
+import { settingsManager } from "../../services/SettingsManager.js";
 
 /**
  * Helper function to round currency to 2 decimal places
@@ -117,6 +118,15 @@ export function ControlPanel({
             <button
               className="cashout-button"
               onClick={onCashout}
+              onKeyDown={(e) => {
+                // Prevent Space key default behavior when setting is disabled
+                if (
+                  e.code === "Space" &&
+                  !settingsManager.get("spaceToPlayEnabled")
+                ) {
+                  e.preventDefault();
+                }
+              }}
               disabled={cashoutButtonDisabled}
               style={{
                 opacity: cashoutButtonDisabled ? 0.5 : 1,
@@ -132,6 +142,15 @@ export function ControlPanel({
           <button
             className={`play-button ${isPlaying ? "go-button" : ""}`}
             onClick={onPlay}
+            onKeyDown={(e) => {
+              // Prevent Space key default behavior when setting is disabled
+              if (
+                e.code === "Space" &&
+                !settingsManager.get("spaceToPlayEnabled")
+              ) {
+                e.preventDefault();
+              }
+            }}
             disabled={goButtonDisabled}
             style={{
               opacity: goButtonDisabled ? 0.5 : 1,

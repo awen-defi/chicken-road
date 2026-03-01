@@ -9,6 +9,8 @@ import {
 } from "./components";
 import { gameEvents } from "./game/core/GameEventBus.js";
 import { liveWinService } from "./services/LiveWinService.js";
+import { audioEngine } from "./services/AudioEngine.js";
+import { settingsManager } from "./services/SettingsManager.js";
 
 /**
  * Helper function to round currency to 2 decimal places
@@ -72,6 +74,14 @@ export default function App() {
       return;
     }
 
+    // Initialize audio engine on first user interaction
+    if (!audioEngine.initialized) {
+      audioEngine.initialize();
+    }
+
+    // Play button click sound
+    audioEngine.onButtonClick();
+
     if (gameState === "idle" || gameState === "won") {
       // Start new game
       if (balance < betAmount) {
@@ -99,12 +109,16 @@ export default function App() {
 
       // Auto-jump to first lane
       if (jumpChickenFn) {
-        setTimeout(() => jumpChickenFn(), 100);
+        setTimeout(() => {
+          jumpChickenFn();
+          audioEngine.onJump(); // Play jump sound
+        }, 100);
       }
     } else if (gameState === "playing") {
       // Normal jump during gameplay
       if (jumpChickenFn) {
         jumpChickenFn();
+        audioEngine.onJump(); // Play jump sound
       }
     }
   }, [gameState, betAmount, balance, jumpChickenFn, resetGameFn]);
@@ -112,6 +126,9 @@ export default function App() {
   // Handle collision with car
   const handleCollision = useCallback(() => {
     if (gameState !== "playing" && gameState !== "atFinish") return;
+
+    // Play lose sound when chicken gets hit
+    audioEngine.onLose();
 
     setGameState("lost");
   }, [gameState]);
@@ -149,6 +166,7 @@ export default function App() {
     // Cleanup: Stop service on unmount to prevent memory leaks
     return () => {
       liveWinService.stop();
+      audioEngine.destroy(); // Cleanup audio engine
     };
   }, []);
 
@@ -164,6 +182,9 @@ export default function App() {
 
       // Check if reached finish line (beyond all coins)
       if (laneIndex >= totalLanes) {
+        // Play win sound when chicken reaches finish
+        audioEngine.onWin();
+
         setGameState("atFinish");
         gameEvents.emit("game:finished", {
           laneIndex,
@@ -216,6 +237,9 @@ export default function App() {
   const handleCashout = useCallback(() => {
     if (gameState !== "atFinish") return;
 
+    // Play cashout sound
+    audioEngine.onCashout();
+
     // Turn current lane's coin to gold
     if (finishCurrentLaneFn) {
       finishCurrentLaneFn();
@@ -242,6 +266,47 @@ export default function App() {
       handleWinComplete();
     }, 3100); // Slightly longer than notification duration
   }, [gameState, finishCurrentLaneFn, betAmount, handleWinComplete]);
+
+  // Space key listener for "Space to Play" feature
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      // Only respond to Space key
+      if (event.code !== "Space") return;
+
+      // Check if setting is enabled
+      if (!settingsManager.get("spaceToPlayEnabled")) return;
+
+      // Prevent default space behavior (page scroll)
+      event.preventDefault();
+
+      // Don't trigger if typing in an input field
+      if (
+        event.target.tagName === "INPUT" ||
+        event.target.tagName === "TEXTAREA"
+      ) {
+        return;
+      }
+
+      // Determine which button is active and trigger it
+      if (gameState === "atFinish") {
+        // Cashout button is active
+        handleCashout();
+      } else if (
+        gameState === "idle" ||
+        gameState === "playing" ||
+        gameState === "won"
+      ) {
+        // Play/Go button is active
+        handlePlay();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [gameState, handlePlay, handleCashout]);
 
   return (
     <div className="app-container">

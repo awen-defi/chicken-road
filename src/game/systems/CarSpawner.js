@@ -1,4 +1,5 @@
 import { Car } from "../entities/Car.js";
+import { audioEngine } from "../../services/AudioEngine.js";
 
 /**
  * CarSpawner - Manages car spawning and object pooling
@@ -353,6 +354,9 @@ export class CarSpawner {
         console.warn("Failed to add forced car to stage:", e);
       }
     }
+
+    // Play car sound
+    audioEngine.onCar();
 
     // Mark that first game forced loss has been triggered
     this.markGamePlayed();
