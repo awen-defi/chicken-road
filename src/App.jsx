@@ -11,6 +11,7 @@ import { gameEvents } from "./game/core/GameEventBus.js";
 import { liveWinService } from "./services/LiveWinService.js";
 import { audioEngine } from "./services/AudioEngine.js";
 import { settingsManager } from "./services/SettingsManager.js";
+import { betHistoryManager } from "./services/BetHistoryManager.js";
 
 /**
  * Helper function to round currency to 2 decimal places
@@ -48,6 +49,7 @@ export default function App() {
   // Refs for instant access
   const multiplierRef = useRef(1.0);
   const currentLaneRef = useRef(0);
+  const currentBetIdRef = useRef(null);
 
   // Handle loading state from GameArea
   const handleLoadingChange = useCallback(({ isLoading, loadingError }) => {
@@ -103,6 +105,10 @@ export default function App() {
       setCurrentMultiplier(1.0);
       multiplierRef.current = 1.0;
 
+      // Record bet start
+      const betId = betHistoryManager.startBet(betAmount);
+      currentBetIdRef.current = betId;
+
       if (game) {
         game.setGameState("playing"); // Enable collisions when game starts
       }
@@ -129,6 +135,12 @@ export default function App() {
 
     // Play lose sound when chicken gets hit
     audioEngine.onLose();
+
+    // Record bet loss (multiplier 0, winAmount 0)
+    if (currentBetIdRef.current) {
+      betHistoryManager.completeBet(currentBetIdRef.current, 0, 0);
+      currentBetIdRef.current = null;
+    }
 
     setGameState("lost");
   }, [gameState]);
@@ -248,6 +260,16 @@ export default function App() {
     // Calculate winnings using ref for instant value
     const multiplier = multiplierRef.current;
     const winnings = roundCurrency(betAmount * multiplier);
+
+    // Record bet win
+    if (currentBetIdRef.current) {
+      betHistoryManager.completeBet(
+        currentBetIdRef.current,
+        multiplier,
+        winnings,
+      );
+      currentBetIdRef.current = null;
+    }
 
     // Update balance
     setBalance((prev) => roundCurrency(prev + winnings));

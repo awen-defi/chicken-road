@@ -8,6 +8,7 @@ import { GameRules } from "./game-rules";
 import { settingsManager } from "../../services/SettingsManager.js";
 import { ChangeAvatarModal } from "./change-avatar.jsx";
 import { AVATARS } from "../../constants/gameConstants.js";
+import { BetHistoryModal } from "./bet-history.jsx";
 
 export function Menu({ openHowToPlayModal }) {
   const dropdownRef = useRef(null);
@@ -15,6 +16,7 @@ export function Menu({ openHowToPlayModal }) {
   const provablyRef = useRef(null);
   const gameRulesRef = useRef(null);
   const changeAvatarRef = useRef(null);
+  const betHistoryRef = useRef(null);
 
   // Local state for settings (synced with SettingsManager)
   const [soundEnabled, setSoundEnabled] = useState(
@@ -67,6 +69,13 @@ export function Menu({ openHowToPlayModal }) {
     if (changeAvatarRef.current) {
       dropdownRef.current.close();
       changeAvatarRef.current.showModal();
+    }
+  };
+
+  const handleOpenBetHistory = () => {
+    if (betHistoryRef.current) {
+      dropdownRef.current.close();
+      betHistoryRef.current.showModal();
     }
   };
 
@@ -155,6 +164,7 @@ export function Menu({ openHowToPlayModal }) {
         openHowToPlayModal={handleOpenHowToPlay}
         openProvably={handleOpenProvably}
         openGameRules={handleOpenGameRules}
+        openBetHistory={handleOpenBetHistory}
         soundEnabled={soundEnabled}
         musicEnabled={musicEnabled}
         spaceToPlayEnabled={spaceToPlayEnabled}
@@ -165,6 +175,7 @@ export function Menu({ openHowToPlayModal }) {
       <ProvablySettings ref={provablyRef} />
       <GameRules ref={gameRulesRef} />
       <ChangeAvatarModal ref={changeAvatarRef} />
+      <BetHistoryModal ref={betHistoryRef} />
     </div>
   );
 }
@@ -181,6 +192,7 @@ function Dropdown({
   onToggleSound,
   onToggleMusic,
   onToggleSpace,
+  openBetHistory,
 }) {
   const [selectedAvatarIndex, setSelectedAvatarIndex] = useState(
     settingsManager.get("selectedAvatarIndex") || 0,
@@ -351,7 +363,11 @@ function Dropdown({
           </span>
           <span>Game rules</span>
         </div>
-        <div data-testid="menu-bets-history" className="MenuItem point hover">
+        <div
+          data-testid="menu-bets-history"
+          className="MenuItem point hover"
+          onClick={openBetHistory}
+        >
           <span className="IconWrapper">
             <svg
               width="16"
