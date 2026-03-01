@@ -7,8 +7,8 @@ class SettingsManager {
   static STORAGE_KEY = "chicken-game-settings";
 
   static DEFAULTS = {
-    soundEnabled: true,
-    musicEnabled: true,
+    soundEnabled: false,
+    musicEnabled: false,
     spaceToPlayEnabled: true,
   };
 

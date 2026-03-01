@@ -6,12 +6,15 @@ import { Checkbox } from "../Checkbox";
 import { ProvablySettings } from "./provably-settings";
 import { GameRules } from "./game-rules";
 import { settingsManager } from "../../services/SettingsManager.js";
+import { ChangeAvatarModal } from "./change-avatar.jsx";
+import { AVATARS } from "../../constants/gameConstants.js";
 
 export function Menu({ openHowToPlayModal }) {
   const dropdownRef = useRef(null);
   const menuRef = useRef(null);
   const provablyRef = useRef(null);
   const gameRulesRef = useRef(null);
+  const changeAvatarRef = useRef(null);
 
   // Local state for settings (synced with SettingsManager)
   const [soundEnabled, setSoundEnabled] = useState(
@@ -57,6 +60,13 @@ export function Menu({ openHowToPlayModal }) {
     if (gameRulesRef.current) {
       dropdownRef.current.close();
       gameRulesRef.current.showModal();
+    }
+  };
+
+  const handleOpenChangeAvatar = () => {
+    if (changeAvatarRef.current) {
+      dropdownRef.current.close();
+      changeAvatarRef.current.showModal();
     }
   };
 
@@ -141,6 +151,7 @@ export function Menu({ openHowToPlayModal }) {
 
       <Dropdown
         ref={dropdownRef}
+        openChangeAvatar={handleOpenChangeAvatar}
         openHowToPlayModal={handleOpenHowToPlay}
         openProvably={handleOpenProvably}
         openGameRules={handleOpenGameRules}
@@ -153,6 +164,7 @@ export function Menu({ openHowToPlayModal }) {
       />
       <ProvablySettings ref={provablyRef} />
       <GameRules ref={gameRulesRef} />
+      <ChangeAvatarModal ref={changeAvatarRef} />
     </div>
   );
 }
@@ -160,6 +172,7 @@ export function Menu({ openHowToPlayModal }) {
 function Dropdown({
   ref,
   openHowToPlayModal,
+  openChangeAvatar,
   openProvably,
   openGameRules,
   soundEnabled,
@@ -169,6 +182,18 @@ function Dropdown({
   onToggleMusic,
   onToggleSpace,
 }) {
+  const [selectedAvatarIndex, setSelectedAvatarIndex] = useState(
+    settingsManager.get("selectedAvatarIndex") || 0,
+  );
+
+  useEffect(() => {
+    const unsubscribe = settingsManager.subscribe(
+      "selectedAvatarIndex",
+      setSelectedAvatarIndex,
+    );
+    return () => unsubscribe();
+  }, []);
+
   return (
     <dialog
       className="MenuContainer"
@@ -177,13 +202,14 @@ function Dropdown({
     >
       <div className="MenuHeader">
         <div className="MenuHeaderUserAvatar">
-          <img
-            src="data:image/png;base64,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"
-            alt="avatar"
-          />
+          <img src={AVATARS[selectedAvatarIndex]} alt="avatar" />
         </div>
         <div className="MenuHeaderUserName">Purple Visiting Koi</div>
-        <div data-testid="menu-avatar-modal" className="MenuHeaderUserBtn">
+        <div
+          data-testid="menu-avatar-modal"
+          className="MenuHeaderUserBtn"
+          onClick={openChangeAvatar}
+        >
           Change avatar
         </div>
       </div>
