@@ -8,7 +8,7 @@ import cashoutSound from "../assets/audios/cashout.webm";
 import winSound from "../assets/audios/win.webm";
 import soundtrack from "../assets/audios/Soundtrack.webm";
 import loseSound from "../assets/audios/lose.webm";
-import crashSound from "../assets/audios/crash.mp3";
+import crashSound from "../assets/audios/crash.webm";
 import buttonClickSound from "../assets/audios/buttonClick.webm";
 
 /**
