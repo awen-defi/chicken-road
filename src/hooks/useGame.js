@@ -43,6 +43,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
 
   // Decorative sprite references for dynamic updates
   const lightSpriteRef = useRef(null); // Store light pole sprite reference
+  const finishLightSpriteRef = useRef(null); // Store finish light pole sprite reference
   const bannerSpriteRef = useRef(null); // Store banner sprite reference
   const gameElementsCenterYRef = useRef(0); // Store center Y position for sprite updates
 
@@ -306,6 +307,20 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           bannerSprite.zIndex = 10; // Above scenery but below coins
           entityManager.stage.addChild(bannerSprite);
           bannerSpriteRef.current = bannerSprite; // Store reference for updates
+        }
+
+        // Light pole on finish sidewalk (static decoration, horizontally flipped)
+        if (poleTexture) {
+          const lightScale = sceneryScale * 0.5; // 60% of scenery scale
+          const finishLightSprite = new Sprite(poleTexture);
+          finishLightSprite.anchor.set(0.5, 1); // Center bottom anchor
+          finishLightSprite.scale.set(-lightScale, lightScale); // Flip horizontally
+          // Position on finish sidewalk
+          finishLightSprite.x = startWidth + roadWidth + finishWidth * 0.1; // Left side of finish sidewalk
+          finishLightSprite.y = gameElementsCenterY - 200; // Same height as start light
+          finishLightSprite.zIndex = 10; // Above scenery but below coins
+          entityManager.stage.addChild(finishLightSprite);
+          finishLightSpriteRef.current = finishLightSprite; // Store reference for updates
         }
 
         // Chicken with Spine animation (positioned more to the left after start image clipping)
@@ -786,7 +801,13 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           startWidth + newRoadWidth + finishWidth * 0.45;
       }
 
-      // Light sprite position is based on startWidth only, so no update needed
+      // Update finish light sprite position if it exists
+      if (finishLightSpriteRef.current) {
+        finishLightSpriteRef.current.x =
+          startWidth + newRoadWidth + finishWidth * 0.1;
+      }
+
+      // Start light sprite position is based on startWidth only, so no update needed
 
       // Resize canvas to match new layout
       const roadHeight = roadHeightRef.current;
